@@ -41,14 +41,14 @@ except ImportError:
 # PAGE CONFIG
 # ================================================================
 st.set_page_config(
-    page_title="Disaster Tweet AI Detector - Fine-tuned BERT",
+    page_title="Disaster Tweet AI Detector - HuggingFace BERT",
     layout="wide",
     initial_sidebar_state="expanded",
     page_icon="🌪️"
 )
 
 # ================================================================
-# ENHANCED CSS WITH MODERN DESIGN (KEEP YOUR EXISTING CSS)
+# ENHANCED CSS WITH MODERN DESIGN
 # ================================================================
 st.markdown("""
 <style>
@@ -88,9 +88,9 @@ st.markdown("""
         to { transform: translateY(0); opacity: 1; }
     }
     
-    /* Disaster AI badge */
-    .disaster-badge {
-        background: linear-gradient(135deg, #ff6b6b, #feca57);
+    /* HuggingFace badge */
+    .huggingface-badge {
+        background: linear-gradient(135deg, #6e40ff, #a371f7);
         color: white;
         padding: 8px 20px;
         border-radius: 30px;
@@ -98,7 +98,7 @@ st.markdown("""
         font-weight: 600;
         display: inline-block;
         margin: 10px 0;
-        box-shadow: 0 5px 15px rgba(255, 107, 107, 0.4);
+        box-shadow: 0 5px 15px rgba(110, 64, 255, 0.4);
         animation: pulse 2s infinite;
     }
     
@@ -251,8 +251,8 @@ st.markdown("""
         color: white;
     }
     
-    .disaster-model-badge {
-        background: linear-gradient(135deg, #ff6b6b, #feca57);
+    .huggingface-model-badge {
+        background: linear-gradient(135deg, #6e40ff, #a371f7);
         color: white;
     }
     
@@ -474,66 +474,12 @@ def initialize_firebase():
 db, FIREBASE_ACTIVE = initialize_firebase()
 
 # ================================================================
-# LOAD FINE-TUNED BERT MODEL
-# ================================================================
-
-@st.cache_resource(show_spinner="Loading Fine-tuned BERT Model...")
-def load_finetuned_bert():
-    """Load your fine-tuned BERT model"""
-    model_path = "bert_disaster_model_fine_tuned"
-    
-    # Try multiple possible paths
-    possible_paths = [
-        model_path,
-        os.path.join(os.getcwd(), model_path),
-        os.path.join(os.path.dirname(os.getcwd()), model_path)
-    ]
-    
-    loaded_path = None
-    for path in possible_paths:
-        if os.path.exists(path):
-            loaded_path = path
-            break
-    
-    if loaded_path is None:
-        st.sidebar.warning("⚠️ Fine-tuned BERT model not found. Please train the model first.")
-        return None, None, False
-    
-    try:
-        tokenizer = AutoTokenizer.from_pretrained(loaded_path, local_files_only=True)
-        model = AutoModelForSequenceClassification.from_pretrained(loaded_path, local_files_only=True)
-        model.eval()
-        return model, tokenizer, True
-    except Exception as e:
-        st.sidebar.error(f"❌ Error loading BERT model: {e}")
-        return None, None, False
-
-# Load your fine-tuned BERT model
-bert_model, bert_tokenizer, bert_loaded = load_finetuned_bert()
-
-# ================================================================
-# LOAD LOGISTIC REGRESSION MODEL (as backup)
-# ================================================================
-
-@st.cache_resource
-def load_lr_model():
-    """Load trained Logistic Regression model as backup"""
-    try:
-        vectorizer = joblib.load('tfidf_vectorizer.pkl')
-        lr_model = joblib.load('logistic_regression_model.pkl')
-        return vectorizer, lr_model, True
-    except:
-        return None, None, False
-
-vectorizer, lr_model, lr_loaded = load_lr_model()
-
-# ================================================================
 # SESSION STATE INITIALIZATION
 # ================================================================
 if "session_id" not in st.session_state:
     st.session_state["session_id"] = hashlib.md5(str(time.time()).encode()).hexdigest()[:8]
 if "model_choice" not in st.session_state:
-    st.session_state["model_choice"] = "finetuned_bert"  # Default to fine-tuned BERT
+    st.session_state["model_choice"] = "huggingface_bert"
 if "input_key_counter" not in st.session_state:
     st.session_state["input_key_counter"] = 0
 if "last_refresh" not in st.session_state:
@@ -551,15 +497,9 @@ if "local_stats" not in st.session_state:
         "disaster_types": {},
         "models_used": {}
     }
-if "dark_mode" not in st.session_state:
-    st.session_state["dark_mode"] = False
-if "animations_enabled" not in st.session_state:
-    st.session_state["animations_enabled"] = True
-if "deterministic_mode" not in st.session_state:
-    st.session_state["deterministic_mode"] = True
 
 # ================================================================
-# CONSTANTS (Keep your existing constants)
+# CONSTANTS
 # ================================================================
 MALAYSIA_LOCATIONS = [
     'Kampar', 'Ipoh', 'Kuala Lumpur', 'KL', 'Penang', 'Pulau Pinang',
@@ -584,6 +524,66 @@ DISASTER_KEYWORDS = {
 }
 
 # ================================================================
+# HUGGINGFACE BERT MODEL LOADING (EASIER FOR DEPLOYMENT)
+# ================================================================
+
+@st.cache_resource(show_spinner="🔄 Loading BERT model from HuggingFace Hub...")
+def load_huggingface_bert():
+    """
+    Load BERT model from HuggingFace Hub
+    This is the recommended approach for deployment - no large files in GitHub!
+    """
+    try:
+        # TODO: Replace with your HuggingFace model ID after uploading
+        # Format: "username/model-name"
+        MODEL_NAME = "cyruschou520/bert-disaster-model"  # You need to upload your model here
+        
+        with st.spinner(f"Downloading model from HuggingFace Hub (this may take a minute)..."):
+            tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+            model = AutoModelForSequenceClassification.from_pretrained(MODEL_NAME)
+            model.eval()
+            
+        st.sidebar.success("✅ BERT model loaded from HuggingFace Hub!")
+        return model, tokenizer, True
+        
+    except Exception as e:
+        st.sidebar.warning(f"⚠️ Could not load from HuggingFace: {e}")
+        st.sidebar.info("Falling back to local model if available...")
+        
+        # Fallback to local model
+        try:
+            local_path = "bert_disaster_model_fine_tuned"
+            if os.path.exists(local_path):
+                tokenizer = AutoTokenizer.from_pretrained(local_path)
+                model = AutoModelForSequenceClassification.from_pretrained(local_path)
+                model.eval()
+                st.sidebar.success("✅ Loaded local BERT model")
+                return model, tokenizer, True
+        except:
+            pass
+        
+        return None, None, False
+
+# Load the HuggingFace BERT model
+bert_model, bert_tokenizer, bert_loaded = load_huggingface_bert()
+
+# ================================================================
+# LOAD LOGISTIC REGRESSION MODEL (as backup)
+# ================================================================
+
+@st.cache_resource
+def load_lr_model():
+    """Load trained Logistic Regression model as backup"""
+    try:
+        vectorizer = joblib.load('tfidf_vectorizer.pkl')
+        lr_model = joblib.load('logistic_regression_model.pkl')
+        return vectorizer, lr_model, True
+    except:
+        return None, None, False
+
+vectorizer, lr_model, lr_loaded = load_lr_model()
+
+# ================================================================
 # PREPROCESSING FUNCTION
 # ================================================================
 
@@ -603,11 +603,11 @@ def preprocess_tweet(text):
     return " ".join(tokens)
 
 # ================================================================
-# BERT PREDICTION FUNCTION
+# BERT PREDICTION FUNCTION (HuggingFace version)
 # ================================================================
 
 def predict_with_bert(text):
-    """Predict using fine-tuned BERT model"""
+    """Predict using BERT model from HuggingFace"""
     if not bert_loaded or bert_model is None:
         return None
     
@@ -624,7 +624,7 @@ def predict_with_bert(text):
             "confidence": 0.5,
             "reasons": ["Empty tweet after preprocessing"],
             "detected_disasters": [],
-            "model_used": "BERT (Fine-tuned)",
+            "model_used": "BERT (HuggingFace)",
             "response_time": time.time() - start_time,
             "word_count": 0,
             "exclamation_count": 0,
@@ -655,7 +655,7 @@ def predict_with_bert(text):
         prob_not_disaster = probabilities[0][0].item()
         prob_disaster = probabilities[0][1].item()
     
-    # Detect disaster types (simple keyword check for display)
+    # Detect disaster types
     text_lower = text.lower()
     detected_disasters = []
     for disaster, keywords in DISASTER_KEYWORDS.items():
@@ -693,13 +693,13 @@ def predict_with_bert(text):
         reasons.append(f"🌪️ Detected disaster type(s): {', '.join(detected_disasters)}")
     
     return {
-        "is_fake": predicted_class == 1,  # 1 = disaster
+        "is_fake": predicted_class == 1,
         "fake_probability": prob_disaster,
         "real_probability": prob_not_disaster,
         "confidence": confidence,
         "reasons": reasons,
         "detected_disasters": detected_disasters,
-        "model_used": "BERT (Fine-tuned)",
+        "model_used": "BERT (HuggingFace)",
         "response_time": time.time() - start_time,
         "word_count": len(words),
         "exclamation_count": exclamation_count,
@@ -725,7 +725,6 @@ def predict_with_lr(text):
     probs = lr_model.predict_proba(X)[0]
     pred = lr_model.predict(X)[0]
     
-    # Detect disaster types
     text_lower = text.lower()
     detected_disasters = []
     for disaster, keywords in DISASTER_KEYWORDS.items():
@@ -747,7 +746,67 @@ def predict_with_lr(text):
         "exclamation_count": text.count('!'),
         "question_count": text.count('?'),
         "caps_words": sum(1 for word in words if word.isupper() and len(word) > 2),
-        "has_url": bool(re.search(r'http[s]?://', text.lower())),
+        "has_url": bool(re.search(r'http[s]?://', text_lower)),
+        "number_count": len(re.findall(r'\d+', text))
+    }
+
+# ================================================================
+# DISASTER AI FUNCTION (simulated - always available)
+# ================================================================
+
+def predict_with_disaster_ai(text):
+    """Simulated Disaster AI (always available as fallback)"""
+    start_time = time.time()
+    
+    # Simple keyword-based detection
+    text_lower = text.lower()
+    
+    fake_score = 0
+    real_score = 0
+    
+    # Fake indicators
+    fake_keywords = ['urgent', 'breaking', 'share', 'viral', '!!!', 'omg', 'shocking', 'massive']
+    for kw in fake_keywords:
+        if kw in text_lower:
+            fake_score += 1
+    
+    # Real indicators
+    real_keywords = ['according to', 'official', 'authorities', 'reported', 'confirmed', 'jps', 'bomba']
+    for kw in real_keywords:
+        if kw in text_lower:
+            real_score += 1.5
+    
+    # Disaster detection
+    detected_disasters = []
+    for disaster, keywords in DISASTER_KEYWORDS.items():
+        if any(keyword in text_lower for keyword in keywords):
+            detected_disasters.append(disaster)
+    
+    # Calculate probability
+    total = fake_score + real_score
+    if total > 0:
+        fake_prob = fake_score / total
+    else:
+        fake_prob = 0.5
+    
+    real_prob = 1 - fake_prob
+    
+    words = text.split()
+    
+    return {
+        "is_fake": fake_prob > 0.5,
+        "fake_probability": fake_prob,
+        "real_probability": real_prob,
+        "confidence": abs(fake_prob - 0.5) * 2,
+        "reasons": ["🌪️ Disaster AI (simulated) - No actual AI model loaded"],
+        "detected_disasters": detected_disasters,
+        "model_used": "Disaster AI (Simulated)",
+        "response_time": time.time() - start_time,
+        "word_count": len(words),
+        "exclamation_count": text.count('!'),
+        "question_count": text.count('?'),
+        "caps_words": sum(1 for word in words if word.isupper() and len(word) > 2),
+        "has_url": bool(re.search(r'http[s]?://', text_lower)),
         "number_count": len(re.findall(r'\d+', text))
     }
 
@@ -758,44 +817,203 @@ def predict_with_lr(text):
 def analyze_tweet(text, model_choice):
     """Main analysis function routing"""
     
-    if model_choice == "finetuned_bert" and bert_loaded:
+    if model_choice == "huggingface_bert" and bert_loaded:
         result = predict_with_bert(text)
-        if result is None and lr_loaded:
-            result = predict_with_lr(text)
-    elif model_choice == "lr" and lr_loaded:
-        result = predict_with_lr(text)
-    elif model_choice == "disaster_ai":
-        # Use your existing Disaster AI function
-        result = analyze_with_disaster_ai(text, st.session_state["deterministic_mode"])
-    else:
-        # Fallback to Disaster AI
-        result = analyze_with_disaster_ai(text, st.session_state["deterministic_mode"])
+        if result is not None:
+            return result
     
-    return result
+    if model_choice == "lr" and lr_loaded:
+        result = predict_with_lr(text)
+        if result is not None:
+            return result
+    
+    # Always fall back to Disaster AI
+    return predict_with_disaster_ai(text)
 
 # ================================================================
-# KEEP YOUR EXISTING DISASTER AI FUNCTION
+# DISPLAY FUNCTIONS
 # ================================================================
-def analyze_with_disaster_ai(text, deterministic=True):
-    """Your existing Disaster AI function (keep as is)"""
-    # [Copy your existing analyze_with_disaster_ai function here]
-    # For brevity, I'm not copying the entire function, but you should keep it
-    pass
+
+def display_probability_bar(fake_prob, real_prob):
+    """Display visual probability bar"""
+    fake_percent = fake_prob * 100
+    real_percent = real_prob * 100
+    
+    st.markdown(f"""
+    <div class="probability-bar-container">
+        <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+            <span style="color: #ff6b6b; font-weight: 600;">DISASTER: {fake_percent:.1f}%</span>
+            <span style="color: #10ac84; font-weight: 600;">NOT DISASTER: {real_percent:.1f}%</span>
+        </div>
+        <div class="probability-bar">
+            <div class="fake-bar" style="width: {fake_percent}%;">
+                {fake_percent:.1f}%
+            </div>
+            <div class="real-bar" style="width: {real_percent}%;">
+                {real_percent:.1f}%
+            </div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+def display_comprehensive_metrics(analysis):
+    """Display all analysis metrics"""
+    
+    st.markdown('<h3 class="section-header">📊 Disaster Tweet Analysis</h3>', unsafe_allow_html=True)
+    
+    # Probability Overview
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.markdown(f"""
+        <div class="metric-card">
+            <h4>Disaster Probability</h4>
+            <h2 style="color: {'#ff6b6b' if analysis['fake_probability'] > 0.5 else '#666'}">
+                {analysis['fake_probability']*100:.1f}%
+            </h2>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col2:
+        st.markdown(f"""
+        <div class="metric-card">
+            <h4>Non-Disaster Probability</h4>
+            <h2 style="color: {'#10ac84' if analysis['real_probability'] > 0.5 else '#666'}">
+                {analysis['real_probability']*100:.1f}%
+            </h2>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col3:
+        st.markdown(f"""
+        <div class="metric-card">
+            <h4>Decision</h4>
+            <h2>{'🔴 DISASTER' if analysis['is_fake'] else '✅ NOT DISASTER'}</h2>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    # Confidence Analysis
+    st.markdown('<h4 style="margin-top: 20px;">🎯 Confidence Analysis</h4>', unsafe_allow_html=True)
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        st.metric("Confidence", f"{analysis.get('confidence', 0.5)*100:.1f}%")
+    
+    with col2:
+        st.metric("Words", analysis.get('word_count', 0))
+    
+    with col3:
+        st.metric("Exclamation", analysis.get('exclamation_count', 0))
+    
+    with col4:
+        st.metric("Caps Words", analysis.get('caps_words', 0))
+    
+    # URL and Numbers
+    if analysis.get('has_url'):
+        st.info("🔗 Contains reference link")
+    
+    if analysis.get('number_count', 0) > 0:
+        st.info(f"🔢 Contains {analysis['number_count']} numbers")
+    
+    # Disaster Type
+    if analysis.get('detected_disasters'):
+        st.markdown("#### 🌪️ Detected Disaster Types")
+        cols = st.columns(len(analysis['detected_disasters']))
+        for i, disaster in enumerate(analysis['detected_disasters']):
+            with cols[i]:
+                st.info(disaster.upper())
+    
+    # Reasons
+    if analysis.get('reasons'):
+        st.markdown("#### 🔍 Detection Reasons")
+        for reason in analysis['reasons']:
+            if "DISASTER" in reason or "disaster" in reason:
+                st.error(f"• {reason}")
+            elif "NOT" in reason:
+                st.success(f"• {reason}")
+            else:
+                st.warning(f"• {reason}")
+
+def create_location_map(location, lat, lon, is_fake):
+    """Create a location map"""
+    fig = go.Figure()
+    
+    fig.add_trace(go.Scattermapbox(
+        lat=[lat],
+        lon=[lon],
+        mode='markers+text',
+        marker=dict(
+            size=20,
+            color='red' if is_fake else 'green',
+            symbol='marker'
+        ),
+        text=[location],
+        textposition="top center"
+    ))
+    
+    radius_km = 5
+    radius_deg = radius_km / 111.0
+    circle_points = 50
+    circle_lats = [lat + radius_deg * math.cos(2 * math.pi * i / circle_points) 
+                  for i in range(circle_points + 1)]
+    circle_lons = [lon + radius_deg * math.sin(2 * math.pi * i / circle_points) 
+                  for i in range(circle_points + 1)]
+    
+    fig.add_trace(go.Scattermapbox(
+        lat=circle_lats,
+        lon=circle_lons,
+        mode='lines',
+        line=dict(width=2, color='red' if is_fake else 'green'),
+        name='5km Radius'
+    ))
+    
+    fig.update_layout(
+        mapbox=dict(
+            style="open-street-map",
+            center=dict(lat=lat, lon=lon),
+            zoom=10
+        ),
+        height=400,
+        margin={"r": 0, "t": 0, "l": 0, "b": 0}
+    )
+    
+    return fig
 
 # ================================================================
-# KEEP YOUR EXISTING DISPLAY FUNCTIONS
+# REAL-TIME DATA MANAGER (simplified)
 # ================================================================
-# [Keep all your existing display functions: display_probability_bar, 
-#  display_comprehensive_metrics, create_location_map, display_live_stats,
-#  display_live_alerts, display_live_feed]
 
-# ================================================================
-# KEEP YOUR EXISTING REALTIME DATA MANAGER
-# ================================================================
-# [Keep your existing RealtimeDataManager class]
+class RealtimeDataManager:
+    """Simplified data manager"""
+    
+    def __init__(self, firebase_active):
+        self.firebase_active = firebase_active
+        
+    def save_analysis(self, analysis_data):
+        st.session_state["local_analyses"].append(analysis_data)
+        stats = st.session_state["local_stats"]
+        stats["total_analyses"] += 1
+        if analysis_data.get("is_fake"):
+            stats["total_fake"] += 1
+        else:
+            stats["total_real"] += 1
+        
+        if analysis_data.get("location"):
+            loc = analysis_data["location"]
+            stats["locations"][loc] = stats["locations"].get(loc, 0) + 1
+        
+        for disaster in analysis_data.get("detected_disasters", []):
+            stats["disaster_types"][disaster] = stats["disaster_types"].get(disaster, 0) + 1
+        
+        return "local"
+    
+    def get_live_stats(self):
+        return st.session_state["local_stats"]
+    
+    def get_live_analyses(self, limit=50):
+        return st.session_state["local_analyses"][-limit:]
 
 # Initialize real-time manager
-rt_manager = RealtimeDataManager(db, FIREBASE_ACTIVE)
+rt_manager = RealtimeDataManager(FIREBASE_ACTIVE)
 
 # ================================================================
 # MAIN UI STARTS HERE
@@ -807,11 +1025,11 @@ st.markdown('<div class="main-container">', unsafe_allow_html=True)
 # ================================================================
 badge_class = "live-badge" if FIREBASE_ACTIVE else "local-badge"
 badge_text = "🔴 LIVE" if FIREBASE_ACTIVE else "⚫ LOCAL"
-connection_status = "Connected to Global Disaster Network" if FIREBASE_ACTIVE else "Offline Mode - Data stored locally"
+connection_status = "Connected" if FIREBASE_ACTIVE else "Offline Mode"
 
-# Determine which model is active for display
+# Determine which model is active
 if bert_loaded:
-    model_display = "🧠 Fine-tuned BERT"
+    model_display = "🧠 HuggingFace BERT"
     model_badge_class = "bert-badge"
 else:
     model_display = "🌪️ Disaster AI"
@@ -821,12 +1039,13 @@ st.markdown(
     f'''
     <div class="main-header">
         <h1 style="font-size: 3em; margin-bottom: 10px;">🌪️ Disaster Tweet AI Detector</h1>
-        <p style="font-size: 1.2em; opacity: 0.9;">Fine-tuned BERT model for disaster tweet classification</p>
+        <p style="font-size: 1.2em; opacity: 0.9;">Powered by HuggingFace 🤗 BERT Model</p>
         <div style="margin-top: 20px;">
             <span class="{model_badge_class}">{model_display}</span>
             <span class="status-badge {badge_class}">{badge_text}</span>
+            <span class="status-badge huggingface-model-badge">🤗 HuggingFace Hub</span>
         </div>
-        <p style="margin-top: 15px; font-size: 0.9em; opacity: 0.8;">{connection_status} | Session: {st.session_state["session_id"]}</p>
+        <p style="margin-top: 15px; font-size: 0.9em; opacity: 0.8;">Session: {st.session_state["session_id"]}</p>
     </div>
     ''',
     unsafe_allow_html=True
@@ -838,100 +1057,26 @@ st.markdown(
 with st.sidebar:
     st.markdown('<div class="sidebar-content">', unsafe_allow_html=True)
     
-    # Connection Status Card
-    st.markdown("### 🌐 Disaster Network")
-    if FIREBASE_ACTIVE:
-        st.markdown("""
-        <div style="background: linear-gradient(135deg, #10ac8420, #1dd1a120); padding: 15px; border-radius: 12px; border-left: 4px solid #10ac84;">
-            <div style="display: flex; align-items: center;">
-                <span class="live-dot"></span>
-                <strong style="color: #10ac84;">LIVE DISASTER NETWORK</strong>
-            </div>
-            <p style="margin-top: 10px; font-size: 0.9em;">Data syncing globally in real-time</p>
-            <div class="progress-container">
-                <div class="progress-bar" style="width: 100%;"></div>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-    else:
-        st.markdown("""
-        <div style="background: linear-gradient(135deg, #95a5a620, #7f8c8d20); padding: 15px; border-radius: 12px; border-left: 4px solid #95a5a6;">
-            <div style="display: flex; align-items: center;">
-                <span style="width: 12px; height: 12px; background: #95a5a6; border-radius: 50%; margin-right: 8px;"></span>
-                <strong style="color: #7f8c8d;">LOCAL MODE</strong>
-            </div>
-            <p style="margin-top: 10px; font-size: 0.9em;">Data stored locally - lost on refresh</p>
-        </div>
-        """, unsafe_allow_html=True)
+    # HuggingFace Info
+    st.markdown("### 🤗 HuggingFace Integration")
+    st.markdown("""
+    <div style="background: #6e40ff20; padding: 15px; border-radius: 12px; border-left: 4px solid #6e40ff;">
+        <strong style="color: #6e40ff;">MODEL FROM HUGGINGFACE HUB</strong><br>
+        <small>Model downloads automatically during deployment</small>
+    </div>
+    """, unsafe_allow_html=True)
     
     st.markdown("---")
     
-    # Model Status Cards
-    st.markdown("### 🤖 AI Models")
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        if bert_loaded:
-            st.markdown("""
-            <div style="background: #667eea20; padding: 10px; border-radius: 10px; text-align: center;">
-                <span style="font-size: 2em;">🧠</span><br>
-                <strong style="color: #667eea;">Fine-tuned BERT</strong><br>
-                <span style="color: #667eea;">✅ Ready</span>
-            </div>
-            """, unsafe_allow_html=True)
-        else:
-            st.markdown("""
-            <div style="background: #ff6b6b20; padding: 10px; border-radius: 10px; text-align: center;">
-                <span style="font-size: 2em;">🧠</span><br>
-                <strong style="color: #ff6b6b;">Fine-tuned BERT</strong><br>
-                <span style="color: #ff6b6b;">❌ Not Found</span>
-            </div>
-            """, unsafe_allow_html=True)
-    
-    with col2:
-        if lr_loaded:
-            st.markdown("""
-            <div style="background: #10ac8420; padding: 10px; border-radius: 10px; text-align: center;">
-                <span style="font-size: 2em;">📊</span><br>
-                <strong style="color: #10ac84;">Logistic Regression</strong><br>
-                <span style="color: #10ac84;">✅ Ready</span>
-            </div>
-            """, unsafe_allow_html=True)
-        else:
-            st.markdown("""
-            <div style="background: #ff6b6b20; padding: 10px; border-radius: 10px; text-align: center;">
-                <span style="font-size: 2em;">📊</span><br>
-                <strong style="color: #ff6b6b;">Logistic Regression</strong><br>
-                <span style="color: #ff6b6b;">❌ Not Found</span>
-            </div>
-            """, unsafe_allow_html=True)
-    
-    st.markdown("---")
-    
-    # Model Performance Metrics
-    st.markdown("### 📈 Model Performance")
+    # Model Status
+    st.markdown("### 🧠 Model Status")
     
     if bert_loaded:
-        st.markdown("""
-        <div style="background: #667eea10; padding: 15px; border-radius: 10px; margin-bottom: 10px;">
-            <strong>🧠 Fine-tuned BERT</strong><br>
-            • Accuracy: ~85-90%<br>
-            • Precision: ~86%<br>
-            • Recall: ~84%<br>
-            • F1-Score: ~85%<br>
-            <small>Trained on 11,370 disaster tweets</small>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    if lr_loaded:
-        st.markdown("""
-        <div style="background: #10ac8410; padding: 15px; border-radius: 10px;">
-            <strong>📊 Logistic Regression</strong><br>
-            • Accuracy: ~88%<br>
-            • Fast & lightweight<br>
-            • Good baseline model
-        </div>
-        """, unsafe_allow_html=True)
+        st.success("✅ HuggingFace BERT: LOADED")
+        st.info("Model downloaded from HuggingFace Hub")
+    else:
+        st.error("❌ HuggingFace BERT: NOT LOADED")
+        st.warning("Using Disaster AI fallback")
     
     st.markdown("---")
     
@@ -940,88 +1085,46 @@ with st.sidebar:
     
     # Model Selection
     model_options = []
-    model_labels = {}
-    
     if bert_loaded:
-        model_options.append("finetuned_bert")
-        model_labels["finetuned_bert"] = "🧠 Fine-tuned BERT (Most Accurate)"
-    
+        model_options.append("huggingface_bert")
     if lr_loaded:
         model_options.append("lr")
-        model_labels["lr"] = "📊 Logistic Regression (Fast)"
-    
-    # Always include Disaster AI as fallback
     model_options.append("disaster_ai")
-    model_labels["disaster_ai"] = "🌪️ Disaster AI (Simulated)"
+    
+    model_labels = {
+        "huggingface_bert": "🧠 HuggingFace BERT (Recommended)",
+        "lr": "📊 Logistic Regression",
+        "disaster_ai": "🌪️ Disaster AI (Fallback)"
+    }
     
     model_choice = st.radio(
-        "Select Detection Model",
+        "Select Model",
         model_options,
         format_func=lambda x: model_labels.get(x, x),
-        index=0,
-        help="Choose your preferred disaster detection model"
+        index=0
     )
     st.session_state["model_choice"] = model_choice
     
-    # Deterministic mode toggle (for Disaster AI)
-    if model_choice == "disaster_ai":
-        st.session_state["deterministic_mode"] = st.toggle(
-            "🎯 Deterministic Mode",
-            value=True,
-            help="Same disaster tweet always gives same results"
-        )
-    
     # Auto-refresh toggle
     st.session_state["auto_refresh"] = st.toggle(
-        "🔄 Auto-refresh Feed",
-        value=True,
-        help="Automatically refresh live disaster feed every 5 seconds"
+        "🔄 Auto-refresh",
+        value=True
     )
     
     st.markdown("---")
     
     # Live Statistics
-    st.markdown("### 📊 Disaster Statistics")
+    st.markdown("### 📊 Statistics")
     stats = rt_manager.get_live_stats()
     
     col1, col2 = st.columns(2)
     with col1:
-        st.markdown(f"""
-        <div class="stat-card">
-            <div class="stat-label">Total Analyses</div>
-            <div class="stat-value">{stats.get('total_analyses', 0)}</div>
-        </div>
-        """, unsafe_allow_html=True)
-    
+        st.metric("Total", stats.get('total_analyses', 0))
     with col2:
-        st.markdown(f"""
-        <div class="stat-card">
-            <div class="stat-label">Fake Disasters</div>
-            <div class="stat-value" style="color: #ff6b6b;">{stats.get('total_fake', 0)}</div>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    col1, col2 = st.columns(2)
-    with col1:
-        st.markdown(f"""
-        <div class="stat-card">
-            <div class="stat-label">Real Disasters</div>
-            <div class="stat-value" style="color: #10ac84;">{stats.get('total_real', 0)}</div>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col2:
-        if stats.get('locations'):
-            top_location = max(stats['locations'].items(), key=lambda x: x[1])[0]
-            st.markdown(f"""
-            <div class="stat-card">
-                <div class="stat-label">Hotspot</div>
-                <div class="stat-value" style="font-size: 1.2em;">📍 {top_location}</div>
-            </div>
-            """, unsafe_allow_html=True)
+        st.metric("Disasters", stats.get('total_fake', 0))
     
     # Clear data button
-    if st.button("🗑️ Clear All Disaster Data", use_container_width=True):
+    if st.button("🗑️ Clear Data", use_container_width=True):
         st.session_state["local_analyses"] = []
         st.session_state["local_stats"] = {
             "total_analyses": 0,
@@ -1044,87 +1147,68 @@ if st.session_state["auto_refresh"]:
         st.rerun()
 
 # ================================================================
-# LIVE ALERTS SECTION
-# ================================================================
-display_live_alerts()
-
-# ================================================================
 # INPUT SECTION
 # ================================================================
-st.markdown("### 📝 Enter Disaster Tweet")
+st.markdown("### 📝 Enter Tweet")
 
 input_col1, input_col2 = st.columns([6, 1])
 
 with input_col1:
     input_key = f"tweet_input_{st.session_state['input_key_counter']}"
-    
     tweet = st.text_area(
-        "Enter disaster tweet to analyze:",
-        height=120,
-        placeholder="Example: Heavy rain in Kampar causing flash floods - reported by local authorities JPS monitoring water levels",
+        "Enter tweet:",
+        height=100,
+        placeholder="Example: Heavy rain in Kampar causing flash floods...",
         key=input_key,
         label_visibility="collapsed"
     )
 
 with input_col2:
     st.markdown("<br>", unsafe_allow_html=True)
-    if st.button("🗑️ Clear", use_container_width=True, help="Clear input field"):
+    if st.button("🗑️ Clear", use_container_width=True):
         st.session_state["input_key_counter"] += 1
         st.rerun()
 
 # Quick Examples
-st.markdown("#### 🎯 Disaster Tweet Examples")
-example_col1, example_col2, example_col3, example_col4 = st.columns(4)
+st.markdown("#### 📋 Examples")
+ex_col1, ex_col2, ex_col3 = st.columns(3)
 
-with example_col1:
-    if st.button("📰 Real Disaster", use_container_width=True, key="real_example"):
-        st.session_state["tweet_input"] = "Heavy rain in Kampar causing flash floods. According to local authorities, JPS monitoring water levels. 150 residents evacuated to relief centers."
+with ex_col1:
+    if st.button("📰 Real Disaster", use_container_width=True):
+        st.session_state["tweet_input"] = "Heavy rain in Kampar causing flash floods. According to JPS, water levels rising. 150 evacuated."
         st.session_state["input_key_counter"] += 1
         st.rerun()
 
-with example_col2:
-    if st.button("🚨 Fake Disaster", use_container_width=True, key="fake_example"):
-        st.session_state["tweet_input"] = "URGENT! BREAKING: MASSIVE 8.0 earthquake just hit Kuala Lumpur! Thousands DEAD! Government hiding truth! SHARE NOW before they delete! 😱😱😱"
+with ex_col2:
+    if st.button("🚨 Fake Disaster", use_container_width=True):
+        st.session_state["tweet_input"] = "URGENT! BREAKING: MASSIVE earthquake in KL! Thousands DEAD! SHARE NOW! 😱"
         st.session_state["input_key_counter"] += 1
         st.rerun()
 
-with example_col3:
-    if st.button("🔄 Mixed Signals", use_container_width=True, key="mixed_example"):
-        st.session_state["tweet_input"] = "URGENT! Flood in Johor! Water level 2 meters! SHARE NOW! Official source says evacuating. JPS confirms."
+with ex_col3:
+    if st.button("📍 Location Test", use_container_width=True):
+        st.session_state["tweet_input"] = "Landslide in Cameron Highlands - rescue ongoing"
         st.session_state["input_key_counter"] += 1
         st.rerun()
 
-with example_col4:
-    if st.button("📍 Location Test", use_container_width=True, key="location_example"):
-        st.session_state["tweet_input"] = "Landslide reported in Cameron Highlands - authorities responding, 3 people rescued"
-        st.session_state["input_key_counter"] += 1
-        st.rerun()
-
-# Action Buttons
-col1, col2, col3 = st.columns([1, 1, 4])
+# Analyze Button
+col1, col2 = st.columns([1, 5])
 with col1:
-    analyze_clicked = st.button("🔍 Analyze Disaster Tweet", type="primary", use_container_width=True)
-with col2:
-    if st.button("🔄 New Tweet", use_container_width=True):
-        st.session_state["input_key_counter"] += 1
-        st.rerun()
+    analyze_clicked = st.button("🔍 Analyze", type="primary", use_container_width=True)
 
 # ================================================================
 # ANALYSIS EXECUTION
 # ================================================================
 if analyze_clicked and tweet:
     model_name = {
-        "finetuned_bert": "Fine-tuned BERT",
+        "huggingface_bert": "HuggingFace BERT",
         "lr": "Logistic Regression",
         "disaster_ai": "Disaster AI"
-    }.get(st.session_state["model_choice"], "Unknown")
+    }.get(st.session_state["model_choice"], "Model")
     
-    with st.spinner(f"🧠 {model_name} analyzing..."):
+    with st.spinner(f"🤖 {model_name} analyzing..."):
         
-        result = analyze_tweet(
-            tweet, 
-            st.session_state["model_choice"]
-        )
+        result = analyze_tweet(tweet, st.session_state["model_choice"])
         
         if result:
             # Extract location
@@ -1136,94 +1220,61 @@ if analyze_clicked and tweet:
             
             # Prepare data for storage
             analysis_data = {
-                "tweet": tweet,
-                "tweet_preview": tweet[:100] + "..." if len(tweet) > 100 else tweet,
+                "tweet": tweet[:100] + "...",
                 "location": location,
                 "is_fake": result.get("is_fake"),
                 "fake_probability": result.get("fake_probability"),
                 "real_probability": result.get("real_probability"),
-                "confidence": result.get("confidence", 0.5),
                 "detected_disasters": result.get("detected_disasters", []),
-                "word_count": result.get("word_count", 0),
-                "model_used": result.get("model_used", model_name),
-                "session_id": st.session_state["session_id"]
+                "model_used": result.get("model_used", model_name)
             }
             
-            # Save to Firebase or local storage
-            doc_id = rt_manager.save_analysis(analysis_data)
-            
-            if doc_id and FIREBASE_ACTIVE:
-                st.success(f"✅ Analysis saved to global disaster feed!")
-            else:
-                st.success("✅ Analysis saved locally")
+            rt_manager.save_analysis(analysis_data)
             
             # Display results
             st.markdown("---")
             
-            # Alert based on result and model
-            if result.get("model_used", "").startswith("BERT"):
-                alert_class = "bert-alert"
-                icon = "🧠"
-            elif result.get("model_used", "").startswith("Logistic"):
-                alert_class = "real-alert"
-                icon = "📊"
-            else:
-                alert_class = "disaster-alert"
-                icon = "🌪️"
+            # Alert
+            alert_class = "bert-alert" if "BERT" in result.get("model_used", "") else "disaster-alert"
             
             if result["is_fake"]:
                 st.markdown(
-                    f'<div class="{alert_class}">{icon} {result.get("model_used", "Model")} DETECTED: FAKE DISASTER NEWS<br>'
-                    f'Confidence: {result.get("confidence", 0.5)*100:.1f}% | '
-                    f'Disaster Probability: {result["fake_probability"]*100:.1f}%</div>',
+                    f'<div class="{alert_class}">🔴 DISASTER TWEET DETECTED<br>'
+                    f'Confidence: {result.get("confidence", 0.5)*100:.1f}%<br>'
+                    f'<small>Model: {result.get("model_used", "Unknown")}</small></div>',
                     unsafe_allow_html=True
                 )
             else:
                 st.markdown(
-                    f'<div class="{alert_class}">{icon} {result.get("model_used", "Model")} DETECTED: REAL DISASTER NEWS<br>'
-                    f'Confidence: {result.get("confidence", 0.5)*100:.1f}% | '
-                    f'Real Probability: {result["real_probability"]*100:.1f}%</div>',
+                    f'<div class="{alert_class}">✅ NOT A DISASTER TWEET<br>'
+                    f'Confidence: {result.get("confidence", 0.5)*100:.1f}%<br>'
+                    f'<small>Model: {result.get("model_used", "Unknown")}</small></div>',
                     unsafe_allow_html=True
                 )
             
             # Display probability bar
             display_probability_bar(result["fake_probability"], result["real_probability"])
             
-            # Display comprehensive metrics
+            # Display metrics
             display_comprehensive_metrics(result)
             
-            # Display location map if location found
+            # Location map
             if location:
-                st.info(f"📍 Disaster location detected: {location}")
-                
+                st.info(f"📍 Location: {location}")
                 try:
-                    url = f"https://nominatim.openstreetmap.org/search?q={urllib.parse.quote(location)}&format=json&limit=1"
-                    headers = {'User-Agent': 'Disaster-Detector/1.0'}
-                    response = requests.get(url, headers=headers, timeout=5)
+                    url = f"https://nominatim.openstreetmap.org/search?q={location}&format=json&limit=1"
+                    response = requests.get(url, headers={'User-Agent': 'Disaster-Detector'}, timeout=5)
                     data = response.json()
-                    
                     if data:
                         lat, lon = float(data[0]['lat']), float(data[0]['lon'])
-                        st.markdown("### 🗺️ Disaster Location Map")
+                        st.markdown("### 🗺️ Map")
                         fig = create_location_map(location, lat, lon, result["is_fake"])
                         st.plotly_chart(fig, use_container_width=True)
-                except Exception as e:
-                    st.warning(f"Could not load map for {location}")
-            
-            # Model info
-            st.info(f"🤖 Model: {result.get('model_used', 'Unknown')} | Response time: {result.get('response_time', 0)*1000:.0f}ms")
+                except:
+                    pass
 
 elif analyze_clicked and not tweet:
-    st.warning("⚠️ Please enter a disaster tweet to analyze.")
-
-# ================================================================
-# LIVE FEED
-# ================================================================
-st.markdown("---")
-display_live_feed()
-
-if st.button("🔄 Refresh Disaster Feed", use_container_width=True):
-    st.rerun()
+    st.warning("⚠️ Please enter a tweet")
 
 # ================================================================
 # FOOTER
@@ -1231,22 +1282,10 @@ if st.button("🔄 Refresh Disaster Feed", use_container_width=True):
 st.markdown("---")
 st.markdown(
     f'''
-    <div style="text-align: center; padding: 30px; background: linear-gradient(135deg, #ff6b6b10, #feca5710); border-radius: 15px; margin-top: 30px;">
-        <div style="display: flex; justify-content: center; gap: 30px; margin-bottom: 20px;">
-            <span class="status-badge" style="background: #667eea; color: white;">🧠 Fine-tuned BERT</span>
-            <span class="status-badge" style="background: #10ac84; color: white;">⚡ Real-time</span>
-            <span class="status-badge" style="background: #f39c12; color: white;">🔬 85-90% Accuracy</span>
-        </div>
-        <p style="color: #666; font-size: 0.9em;">
-            Disaster Tweet AI Detector | Fine-tuned BERT Model for Disaster Classification<br>
-            Trained on 11,370 disaster tweets from Kaggle | Data {'syncing globally' if FIREBASE_ACTIVE else 'stored locally'}<br>
-            Session: {st.session_state["session_id"]} | Last sync: {datetime.now().strftime('%H:%M:%S')}
-        </p>
-        <div style="margin-top: 20px;">
-            <span class="live-dot"></span> Live system - Updates every 5 seconds
-        </div>
-        <p style="color: #888; font-size: 0.8em; margin-top: 15px;">
-            ✅ Fine-tuned BERT • Logistic Regression • Disaster AI • Real-time Analytics
+    <div style="text-align: center; padding: 20px; background: linear-gradient(135deg, #ff6b6b10, #feca5710); border-radius: 15px;">
+        <p style="color: #666;">
+            🌪️ Disaster Tweet AI Detector | Powered by 🤗 HuggingFace BERT<br>
+            Session: {st.session_state["session_id"]} | Model auto-downloads from HuggingFace Hub
         </p>
     </div>
     ''',
