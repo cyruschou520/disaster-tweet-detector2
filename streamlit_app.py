@@ -941,4 +941,328 @@ def display_live_stats():
             top_location = max(stats['locations'].items(), key=lambda x: x[1])[0]
             st.metric("Hotspot", top_location)
     
-    if stats.get("
+    if stats.get("locations"):
+        st.markdown("### 📍 Top Locations")
+        loc_df = pd.DataFrame([
+            {"Location": loc, "Count": count}
+            for loc, count in stats["locations"].items()
+        ]).sort_values("Count", ascending=False).head(10)
+        
+        fig = px.bar(loc_df, x="Location", y="Count", 
+                     title="Most Frequently Mentioned Locations",
+                     color="Count", color_continuous_scale="blues")
+        st.plotly_chart(fig, use_container_width=True)
+
+def display_live_feed():
+    """Display live feed of recent analyses"""
+    
+    analyses = st.session_state["local_analyses"][-20:]
+    
+    if analyses:
+        st.markdown("### 📡 Live Analysis Feed")
+        
+        feed_data = []
+        for a in analyses:
+            feed_data.append({
+                "Time": a.get("timestamp", "")[-8:],
+                "Tweet": a.get("tweet", "")[:50] + "...",
+                "Disaster %": f"{a.get('disaster_probability', 0)*100:.1f}%",
+                "Location": a.get("location", "Unknown"),
+                "Status": "🔴 DISASTER" if a.get("is_disaster") else "✅ NOT",
+                "Model": a.get("model_used", "Unknown")
+            })
+        
+        df = pd.DataFrame(feed_data)
+        st.dataframe(df, use_container_width=True, height=300)
+
+# ================================================================
+# MAIN UI STARTS HERE
+# ================================================================
+st.markdown('<div class="main-container">', unsafe_allow_html=True)
+
+# ================================================================
+# HEADER
+# ================================================================
+connection_status = "Local Mode - Data stored in session"
+
+# Determine which model is active
+if bert_loaded:
+    model_display = "🧠 BERT Model"
+    model_badge_class = "bert-badge"
+else:
+    model_display = "🔍 Mock API"
+    model_badge_class = "mock-badge"
+
+st.markdown(
+    f'''
+    <div class="main-header">
+        <h1 style="font-size: 3em; margin-bottom: 10px;">🤖 Disaster Tweet AI Detector</h1>
+        <p style="font-size: 1.2em; opacity: 0.9;">Powered by BERT Model + Mock API</p>
+        <div style="margin-top: 20px;">
+            <span class="{model_badge_class}">{model_display}</span>
+            <span class="status-badge local-badge">⚫ LOCAL</span>
+        </div>
+        <p style="margin-top: 15px; font-size: 0.9em; opacity: 0.8;">Session: {st.session_state["session_id"]}</p>
+    </div>
+    ''',
+    unsafe_allow_html=True
+)
+
+# ================================================================
+# SIDEBAR
+# ================================================================
+with st.sidebar:
+    st.markdown('<div class="sidebar-content">', unsafe_allow_html=True)
+    
+    # Model Status
+    st.markdown("### 🧠 Model Status")
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        if bert_loaded:
+            st.success("✅ BERT Model")
+            st.caption("Model loaded successfully")
+        else:
+            st.error("❌ BERT Model")
+            st.caption("Using Mock API fallback")
+    
+    with col2:
+        st.success("✅ Mock API")
+        st.caption("Always available")
+    
+    st.markdown("---")
+    
+    # Model Selection
+    st.markdown("### ⚙️ Settings")
+    
+    model_options = []
+    if bert_loaded:
+        model_options.append("bert")
+    model_options.append("mock")
+    
+    model_labels = {
+        "bert": "🧠 BERT Model (More Accurate)",
+        "mock": "🔍 Mock API (Always Available)"
+    }
+    
+    model_choice = st.radio(
+        "Select Model",
+        model_options,
+        format_func=lambda x: model_labels.get(x, x),
+        index=0
+    )
+    st.session_state["model_choice"] = model_choice
+    
+    # Auto-refresh toggle
+    st.session_state["auto_refresh"] = st.toggle(
+        "🔄 Auto-refresh Feed",
+        value=True
+    )
+    
+    st.markdown("---")
+    
+    # Live Statistics
+    st.markdown("### 📊 Statistics")
+    display_live_stats()
+    
+    # Clear data button
+    if st.button("🗑️ Clear History", use_container_width=True):
+        st.session_state["local_analyses"] = []
+        st.session_state["local_stats"] = {
+            "total_analyses": 0,
+            "total_disaster": 0,
+            "total_non_disaster": 0,
+            "locations": {},
+            "disaster_types": {},
+            "models_used": {}
+        }
+        st.rerun()
+    
+    st.markdown('</div>', unsafe_allow_html=True)
+
+# ================================================================
+# AUTO-REFRESH LOGIC
+# ================================================================
+if st.session_state["auto_refresh"]:
+    if time.time() - st.session_state["last_refresh"] > 5:
+        st.session_state["last_refresh"] = time.time()
+        st.rerun()
+
+# ================================================================
+# INPUT SECTION
+# ================================================================
+st.markdown("### 📝 Enter Tweet")
+
+input_col1, input_col2 = st.columns([6, 1])
+
+with input_col1:
+    input_key = f"tweet_input_{st.session_state['input_key_counter']}"
+    tweet = st.text_area(
+        "Enter tweet:",
+        height=100,
+        placeholder="Example: Heavy rain in Kampar causing flash floods...",
+        key=input_key,
+        label_visibility="collapsed"
+    )
+
+with input_col2:
+    st.markdown("<br>", unsafe_allow_html=True)
+    if st.button("🗑️ Clear", use_container_width=True):
+        st.session_state["input_key_counter"] += 1
+        st.rerun()
+
+# Quick Examples
+st.markdown("#### 📋 Examples")
+ex_col1, ex_col2, ex_col3, ex_col4 = st.columns(4)
+
+with ex_col1:
+    if st.button("📰 Real Disaster", use_container_width=True):
+        st.session_state["tweet_input"] = "Heavy rain in Kampar causing flash floods. According to JPS, water levels rising. 150 residents evacuated to relief centers."
+        st.session_state["input_key_counter"] += 1
+        st.rerun()
+
+with ex_col2:
+    if st.button("🚨 Fake Disaster", use_container_width=True):
+        st.session_state["tweet_input"] = "URGENT! BREAKING: MASSIVE 8.0 earthquake in Kuala Lumpur! Thousands DEAD! Government hiding truth! SHARE NOW! 😱😱😱"
+        st.session_state["input_key_counter"] += 1
+        st.rerun()
+
+with ex_col3:
+    if st.button("🔄 Mixed", use_container_width=True):
+        st.session_state["tweet_input"] = "URGENT! Flood in Johor! Water level 2 meters! Official source says evacuating. JPS confirms."
+        st.session_state["input_key_counter"] += 1
+        st.rerun()
+
+with ex_col4:
+    if st.button("📍 Location Test", use_container_width=True):
+        st.session_state["tweet_input"] = "Landslide reported in Cameron Highlands - authorities responding, 3 people rescued"
+        st.session_state["input_key_counter"] += 1
+        st.rerun()
+
+# Analyze Button
+col1, col2 = st.columns([1, 5])
+with col1:
+    analyze_clicked = st.button("🔍 Analyze", type="primary", use_container_width=True)
+
+# ================================================================
+# ANALYSIS EXECUTION
+# ================================================================
+if analyze_clicked and tweet:
+    model_name = "BERT" if st.session_state["model_choice"] == "bert" else "Mock API"
+    
+    with st.spinner(f"🤖 {model_name} analyzing..."):
+        
+        result = analyze_tweet(tweet, st.session_state["model_choice"])
+        
+        if result:
+            # Extract location
+            location = None
+            for loc in MALAYSIA_LOCATIONS:
+                if loc.lower() in tweet.lower():
+                    location = loc
+                    break
+            
+            # Prepare data for storage
+            timestamp = datetime.now().strftime("%H:%M:%S")
+            analysis_data = {
+                "timestamp": timestamp,
+                "tweet": tweet[:100] + "..." if len(tweet) > 100 else tweet,
+                "location": location,
+                "is_disaster": result.get("is_disaster"),
+                "disaster_probability": result.get("disaster_probability"),
+                "detected_disasters": result.get("detected_disasters", []),
+                "model_used": result.get("model_used", model_name)
+            }
+            
+            # Update stats
+            st.session_state["local_analyses"].append(analysis_data)
+            stats = st.session_state["local_stats"]
+            stats["total_analyses"] += 1
+            if result.get("is_disaster"):
+                stats["total_disaster"] += 1
+            else:
+                stats["total_non_disaster"] += 1
+            
+            if location:
+                stats["locations"][location] = stats["locations"].get(location, 0) + 1
+            
+            for disaster in result.get("detected_disasters", []):
+                stats["disaster_types"][disaster] = stats["disaster_types"].get(disaster, 0) + 1
+            
+            stats["models_used"][result.get("model_used", "Unknown")] = stats["models_used"].get(result.get("model_used", "Unknown"), 0) + 1
+            
+            # Display results
+            st.markdown("---")
+            
+            # Alert based on model
+            alert_class = "bert-alert" if "BERT" in result.get("model_used", "") else "mock-alert"
+            
+            if result["is_disaster"]:
+                st.markdown(
+                    f'<div class="{alert_class}">🔴 DISASTER TWEET DETECTED<br>'
+                    f'Confidence: {result.get("confidence", 0.5)*100:.1f}%<br>'
+                    f'<small>Model: {result.get("model_used", "Unknown")}</small></div>',
+                    unsafe_allow_html=True
+                )
+            else:
+                st.markdown(
+                    f'<div class="{alert_class}">✅ NOT A DISASTER TWEET<br>'
+                    f'Confidence: {result.get("confidence", 0.5)*100:.1f}%<br>'
+                    f'<small>Model: {result.get("model_used", "Unknown")}</small></div>',
+                    unsafe_allow_html=True
+                )
+            
+            # Display probability bar
+            display_probability_bar(result["disaster_probability"], result["non_disaster_probability"])
+            
+            # Display metrics
+            display_comprehensive_metrics(result)
+            
+            # Location map
+            if location:
+                st.info(f"📍 Location detected: {location}")
+                try:
+                    url = f"https://nominatim.openstreetmap.org/search?q={urllib.parse.quote(location)}&format=json&limit=1"
+                    headers = {'User-Agent': 'Disaster-Detector/1.0'}
+                    response = requests.get(url, headers=headers, timeout=5)
+                    data = response.json()
+                    if data:
+                        lat, lon = float(data[0]['lat']), float(data[0]['lon'])
+                        st.markdown("### 🗺️ Location Map")
+                        fig = create_location_map(location, lat, lon, result["is_disaster"])
+                        st.plotly_chart(fig, use_container_width=True)
+                except Exception as e:
+                    st.warning(f"Could not load map: {e}")
+
+elif analyze_clicked and not tweet:
+    st.warning("⚠️ Please enter a tweet")
+
+# ================================================================
+# LIVE FEED
+# ================================================================
+st.markdown("---")
+display_live_feed()
+
+if st.button("🔄 Refresh Feed", use_container_width=True):
+    st.rerun()
+
+# ================================================================
+# FOOTER
+# ================================================================
+st.markdown("---")
+st.markdown(
+    f'''
+    <div style="text-align: center; padding: 20px; background: linear-gradient(135deg, #667eea10, #764ba210); border-radius: 15px;">
+        <p style="color: #666;">
+            🤖 Disaster Tweet AI Detector | Powered by BERT Model + Mock API<br>
+            Session: {st.session_state["session_id"]} | {connection_status}
+        </p>
+        <p style="color: #888; font-size: 0.8em;">
+            ✅ BERT Model: {"LOADED" if bert_loaded else "NOT FOUND (using Mock API)"}
+        </p>
+    </div>
+    ''',
+    unsafe_allow_html=True
+)
+
+st.markdown('</div>', unsafe_allow_html=True)
