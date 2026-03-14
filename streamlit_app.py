@@ -470,7 +470,7 @@ def download_and_load_model():
     # 1. Upload your zipped model to Google Drive
     # 2. Share file and get sharing link
     # 3. Extract FILE_ID and use this format:
-    download_url = "https://drive.google.com/uc?export=download&id=1pBbOOdVxm2NShhOStzMrsTUiupnTk7j-"
+    download_url = "https://drive.google.com/file/d/1pBbOOdVxm2NShhOStzMrsTUiupnTk7j-/view?usp=sharing"
     
     try:
         # Download the zip file with progress bar
