@@ -1,0 +1,2 @@
+accuracy,precision,recall,f1_score,auc,true_negatives,false_positives,false_negatives,true_positives
+0.1868953386103782,0.18617957746478872,1.0,0.3139146567717996,0.6029856712811298,2,1849,0,423
