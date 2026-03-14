@@ -9,13 +9,9 @@ plotly>=5.17.0
 nltk>=3.8.0
 regex
 
-# Machine Learning
-scikit-learn>=1.2.0
-joblib>=1.2.0
-
-# Deep Learning (BERT from HuggingFace)
+# BERT dependencies (for local model)
 torch>=2.0.0
 transformers>=4.30.0
 
-# HuggingFace Hub
-huggingface-hub>=0.16.0
+# Utilities
+joblib>=1.2.0
