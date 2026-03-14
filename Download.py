@@ -27,7 +27,7 @@ def download_and_load_model():
     st.info("📥 BERT model not found locally. Downloading from cloud storage...")
     
     # TODO: Replace with your actual download link
-    download_url = "https://your-cloud-storage-link.com/bert_model.zip"
+    download_url = "https://drive.google.com/file/d/1pBbOOdVxm2NShhOStzMrsTUiupnTk7j-/view?usp=drive_link"
     
     try:
         # Download the zip file
