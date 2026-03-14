@@ -478,9 +478,9 @@ def download_and_load_model():
         # Check if we need to confirm the download (Google Drive's virus check)
         if "confirm" in response.url:
             # Extract confirm code
- import re
+            import re
             confirm_code = re.search(r'confirm=([0-9A-Za-z]+)', response.url).group(1)
-            download_url = f"https://drive.google.com/uc?export=download&confirm={confirm_code}&id=1pBbOOdVxm2NShhOStzMrsTUiupnTk7j-"
+            download_url = f"https://drive.google.com/file/d/1iUBsn-eNIBftXxzzW65Z8wYXg1IgYhRt/view?usp=sharing"
             response = session.get(download_url, stream=True)
         
         response.raise_for_status()
