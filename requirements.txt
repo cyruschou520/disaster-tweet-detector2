@@ -1,6 +1,21 @@
+# Core dependencies
 streamlit>=1.28.0
 pandas>=2.0.0
-torch>=2.0.0
-transformers>=4.30.0
+numpy>=1.24.0
 requests>=2.31.0
 plotly>=5.17.0
+
+# NLP dependencies
+nltk>=3.8.0
+regex
+
+# Machine Learning
+scikit-learn>=1.2.0
+joblib>=1.2.0
+
+# Deep Learning (BERT)
+torch>=2.0.0
+transformers>=4.30.0
+
+# Firebase (optional)
+firebase-admin>=6.0.0
