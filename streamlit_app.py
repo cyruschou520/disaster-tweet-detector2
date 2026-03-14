@@ -440,7 +440,7 @@ DISASTER_KEYWORDS = {
 }
 
 # ================================================================
-# DOWNLOAD MODEL FUNCTION (NEW - REPLACES LOCAL LOAD)
+# IMPROVED DOWNLOAD MODEL FUNCTION
 # ================================================================
 
 @st.cache_resource(show_spinner="🔄 Loading BERT model...")
@@ -465,48 +465,77 @@ def download_and_load_model():
     # If not found or corrupted, download from cloud
     st.info("📥 BERT model not found locally. Downloading from cloud storage...")
     
-    # !!! IMPORTANT: Replace this URL with your actual Google Drive link !!!
-    # How to get link: 
-    # 1. Upload your zipped model to Google Drive
-    # 2. Share file and get sharing link
-    # 3. Extract FILE_ID and use this format:
+    # Your direct download link
     download_url = "https://drive.google.com/file/d/1iUBsn-eNIBftXxzzW65Z8wYXg1IgYhRt/view?usp=sharing"
     
     try:
-        # Download the zip file with progress bar
-        with st.spinner("Downloading model (this may take a few minutes)..."):
-            response = requests.get(download_url, stream=True)
-            response.raise_for_status()
-            
-            # Get file size for progress bar
-            total_size = int(response.headers.get('content-length', 0))
-            progress_bar = st.progress(0)
-            status_text = st.empty()
-            
-            # Download with progress
-            with open("bert_model.zip", "wb") as f:
-                downloaded = 0
-                for chunk in response.iter_content(chunk_size=8192):
-                    if chunk:
-                        f.write(chunk)
-                        downloaded += len(chunk)
-                        if total_size > 0:
-                            progress = downloaded / total_size
-                            progress_bar.progress(progress)
-                            status_text.text(f"Downloaded: {downloaded/1024/1024:.1f} MB / {total_size/1024/1024:.1f} MB")
-            
-            status_text.text("Download complete! Extracting...")
-            
-            # Extract the zip file
-            with zipfile.ZipFile("bert_model.zip", 'r') as zip_ref:
-                zip_ref.extractall(".")
-            
-            # Clean up
-            os.remove("bert_model.zip")
-            progress_bar.empty()
-            status_text.empty()
+        # Create a session to handle cookies
+        session = requests.Session()
         
-        # Load the downloaded model
+        # First request might get a warning page
+        response = session.get(download_url, stream=True, allow_redirects=True)
+        
+        # Check if we need to confirm the download (Google Drive's virus check)
+        if "confirm" in response.url:
+            # Extract confirm code
+ import re
+            confirm_code = re.search(r'confirm=([0-9A-Za-z]+)', response.url).group(1)
+            download_url = f"https://drive.google.com/uc?export=download&confirm={confirm_code}&id=1pBbOOdVxm2NShhOStzMrsTUiupnTk7j-"
+            response = session.get(download_url, stream=True)
+        
+        response.raise_for_status()
+        
+        # Get file size for progress bar
+        total_size = int(response.headers.get('content-length', 0))
+        
+        # Check if it's actually a zip file (not an HTML page)
+        content_type = response.headers.get('content-type', '')
+        if 'text/html' in content_type:
+            st.error("❌ Google Drive is returning an HTML page instead of the file.")
+            st.info("This often happens with large files. Please try the alternative method below.")
+            return None, None, False
+        
+        # Download with progress
+        progress_bar = st.progress(0)
+        status_text = st.empty()
+        
+        zip_path = "bert_model.zip"
+        with open(zip_path, "wb") as f:
+            downloaded = 0
+            for chunk in response.iter_content(chunk_size=8192):
+                if chunk:
+                    f.write(chunk)
+                    downloaded += len(chunk)
+                    if total_size > 0:
+                        progress = downloaded / total_size
+                        progress_bar.progress(progress)
+                        status_text.text(f"Downloaded: {downloaded/1024/1024:.1f} MB / {total_size/1024/1024:.1f} MB")
+        
+        status_text.text("Download complete! Verifying zip file...")
+        
+        # Verify it's a valid zip file
+        if not zipfile.is_zipfile(zip_path):
+            st.error("❌ Downloaded file is not a valid zip file.")
+            st.info("The file may be corrupted or incomplete.")
+            os.remove(zip_path)
+            return None, None, False
+        
+        # Extract
+        status_text.text("Extracting zip file...")
+        with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+            zip_ref.extractall(".")
+        
+        # Clean up
+        os.remove(zip_path)
+        progress_bar.empty()
+        status_text.empty()
+        
+        # Verify the extracted folder exists
+        if not os.path.exists(model_path):
+            st.error(f"❌ Extracted folder '{model_path}' not found.")
+            return None, None, False
+        
+        # Load the model
         with st.spinner("Loading BERT model..."):
             tokenizer = AutoTokenizer.from_pretrained(model_path, local_files_only=True)
             model = AutoModelForSequenceClassification.from_pretrained(model_path, local_files_only=True)
@@ -520,9 +549,6 @@ def download_and_load_model():
         st.error(f"❌ Failed to download model: {e}")
         st.info("Falling back to Mock API...")
         return None, None, False
-
-# Load the model using the download function
-bert_model, bert_tokenizer, bert_loaded = download_and_load_model()
 
 # ================================================================
 # PREPROCESSING FUNCTION
