@@ -13,9 +13,9 @@ regex
 scikit-learn>=1.2.0
 joblib>=1.2.0
 
-# Deep Learning (BERT)
+# Deep Learning (BERT from HuggingFace)
 torch>=2.0.0
 transformers>=4.30.0
 
-# Firebase (optional)
-firebase-admin>=6.0.0
+# HuggingFace Hub
+huggingface-hub>=0.16.0
