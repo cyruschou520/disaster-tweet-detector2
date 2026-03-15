@@ -105,6 +105,19 @@ st.markdown("""
         box-shadow: 0 5px 15px rgba(72, 187, 120, 0.4);
     }
     
+    .github-badge {
+        background: linear-gradient(135deg, #24292e, #0d1117);
+        color: white;
+        padding: 8px 20px;
+        border-radius: 30px;
+        font-size: 1em;
+        font-weight: 600;
+        display: inline-block;
+        margin: 10px 0;
+        box-shadow: 0 5px 15px rgba(36, 41, 46, 0.4);
+        animation: pulse 2s infinite;
+    }
+    
     @keyframes pulse {
         0% { opacity: 1; transform: scale(1); }
         50% { opacity: 0.9; transform: scale(1.05); }
@@ -112,7 +125,7 @@ st.markdown("""
     }
     
     /* Alert animations */
-    .bert-alert, .mock-alert {
+    .bert-alert, .mock-alert, .github-alert {
         padding: 20px;
         border-radius: 15px;
         color: white;
@@ -130,6 +143,10 @@ st.markdown("""
     
     .mock-alert {
         background: linear-gradient(135deg, #48bb78, #38a169);
+    }
+    
+    .github-alert {
+        background: linear-gradient(135deg, #24292e, #0d1117);
     }
     
     @keyframes slideIn {
@@ -440,13 +457,14 @@ DISASTER_KEYWORDS = {
 }
 
 # ================================================================
-# DOWNLOAD MODEL FUNCTION
+# GITHUB RELEASE DOWNLOAD FUNCTION
 # ================================================================
 
 @st.cache_resource(show_spinner="🔄 Loading BERT model...")
-def download_and_load_model():
+def download_from_github():
     """
-    Download BERT model from cloud storage if not present locally
+    Download BERT model from GitHub Releases
+    This is the most reliable method for Streamlit Cloud deployment
     """
     model_path = "bert_disaster_model_fine_tuned"
     
@@ -462,108 +480,99 @@ def download_and_load_model():
         except Exception as e:
             st.warning(f"Existing model corrupted: {e}. Will re-download.")
     
-    # If not found or corrupted, download from cloud
-    st.info("📥 BERT model not found locally. Downloading from cloud storage...")
+    # If not found or corrupted, download from GitHub Releases
+    st.info("📥 BERT model not found locally. Downloading from GitHub Releases...")
     
-    # Your Google Drive file ID
-    file_id = "1iUBsn-eNIBftXxzzW65Z8wYXg1IgYhRt"
-    download_url = f"https://github.com/cyruschou520/disaster-tweet-detector2/releases/tag/v1.0.0"
+    # GitHub Release URL - UPDATE THIS WITH YOUR ACTUAL RELEASE URL
+    # After you create a release, the download URL will be:
+    # https://github.com/cyruschou520/disaster-tweet-detector2/releases/download/v1.0.0/bert_disaster_model_fine_tuned.zip
+    github_url = "https://github.com/cyruschou520/disaster-tweet-detector2/releases/download/v1.0.0/bert_disaster_model_fine_tuned.zip"
     
     try:
-        # Create a session to handle cookies
-        session = requests.Session()
-        
-        # First request might get a warning page
-        response = session.get(download_url, stream=True, allow_redirects=True)
-        
-        # Check if we need to confirm the download (Google Drive's virus check)
-        if "confirm" in response.url:
-            # Extract confirm code
-            import re
-            confirm_match = re.search(r'confirm=([0-9A-Za-z]+)', response.url)
-            if confirm_match:
-                confirm_code = confirm_match.group(1)
-                download_url = f"https://drive.google.com/file/d/1iUBsn-eNIBftXxzzW65Z8wYXg1IgYhRt/view?usp=sharing"
-                response = session.get(download_url, stream=True)
-        
-        response.raise_for_status()
-        
-        # Get file size for progress bar
-        total_size = int(response.headers.get('content-length', 0))
-        
-        # Check if it's actually a zip file (not an HTML page)
-        content_type = response.headers.get('content-type', '')
-        if 'text/html' in content_type:
-            st.error("❌ Google Drive is returning an HTML page instead of the file.")
-            st.info("This often happens with large files. Trying alternative download method...")
+        # Download with progress bar
+        with st.spinner("Downloading model from GitHub (this may take a few minutes)..."):
             
-            # Alternative method: use the download URL with confirm=1
-            alt_url = f"https://drive.google.com/uc?export=download&confirm=1&id={file_id}"
-            response = session.get(alt_url, stream=True)
+            # Make request with stream=True for progress tracking
+            response = requests.get(github_url, stream=True)
+            response.raise_for_status()
             
-            if 'text/html' in response.headers.get('content-type', ''):
-                st.error("❌ Still getting HTML. The file might be too large or not publicly shared.")
+            # Get file size for progress bar
+            total_size = int(response.headers.get('content-length', 0))
+            
+            # Create progress bar
+            progress_bar = st.progress(0)
+            status_text = st.empty()
+            
+            # Download file
+            zip_path = "bert_model.zip"
+            with open(zip_path, "wb") as f:
+                downloaded = 0
+                for chunk in response.iter_content(chunk_size=8192):
+                    if chunk:
+                        f.write(chunk)
+                        downloaded += len(chunk)
+                        if total_size > 0:
+                            progress = downloaded / total_size
+                            progress_bar.progress(progress)
+                            status_text.text(f"Downloaded: {downloaded/1024/1024:.1f} MB / {total_size/1024/1024:.1f} MB")
+            
+            status_text.text("Download complete! Verifying zip file...")
+            
+            # Verify it's a valid zip file
+            if not zipfile.is_zipfile(zip_path):
+                st.error("❌ Downloaded file is not a valid zip file.")
+                st.info("The file may be corrupted. Please check your GitHub release.")
+                os.remove(zip_path)
                 return None, None, False
-        
-        # Download with progress
-        progress_bar = st.progress(0)
-        status_text = st.empty()
-        
-        zip_path = "bert_model.zip"
-        with open(zip_path, "wb") as f:
-            downloaded = 0
-            for chunk in response.iter_content(chunk_size=8192):
-                if chunk:
-                    f.write(chunk)
-                    downloaded += len(chunk)
-                    if total_size > 0:
-                        progress = downloaded / total_size
-                        progress_bar.progress(progress)
-                        status_text.text(f"Downloaded: {downloaded/1024/1024:.1f} MB / {total_size/1024/1024:.1f} MB")
-        
-        status_text.text("Download complete! Verifying zip file...")
-        
-        # Verify it's a valid zip file
-        if not zipfile.is_zipfile(zip_path):
-            st.error("❌ Downloaded file is not a valid zip file.")
-            st.info("The file may be corrupted or incomplete.")
+            
+            # Extract
+            status_text.text("Extracting zip file...")
+            with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+                zip_ref.extractall(".")
+            
+            # Clean up
             os.remove(zip_path)
-            return None, None, False
-        
-        # Extract
-        status_text.text("Extracting zip file...")
-        with zipfile.ZipFile(zip_path, 'r') as zip_ref:
-            zip_ref.extractall(".")
-        
-        # Clean up
-        os.remove(zip_path)
-        progress_bar.empty()
-        status_text.empty()
-        
-        # Verify the extracted folder exists
-        if not os.path.exists(model_path):
-            st.error(f"❌ Extracted folder '{model_path}' not found.")
-            return None, None, False
-        
-        # Load the model
-        with st.spinner("Loading BERT model..."):
-            tokenizer = AutoTokenizer.from_pretrained(model_path, local_files_only=True)
-            model = AutoModelForSequenceClassification.from_pretrained(model_path, local_files_only=True)
-            model.eval()
-        
-        st.success("✅ Model downloaded and loaded successfully!")
-        st.sidebar.success("✅ BERT model ready from cloud download!")
-        return model, tokenizer, True
-        
+            progress_bar.empty()
+            status_text.empty()
+            
+            # Verify the extracted folder exists
+            if not os.path.exists(model_path):
+                # Try to find the extracted folder (might be nested)
+                extracted_items = os.listdir(".")
+                for item in extracted_items:
+                    if os.path.isdir(item) and "bert" in item.lower():
+                        st.info(f"Found extracted folder: {item}")
+                        # Rename to expected name
+                        os.rename(item, model_path)
+                        break
+            
+            if not os.path.exists(model_path):
+                st.error(f"❌ Extracted folder '{model_path}' not found.")
+                return None, None, False
+            
+            # Load the model
+            with st.spinner("Loading BERT model..."):
+                tokenizer = AutoTokenizer.from_pretrained(model_path, local_files_only=True)
+                model = AutoModelForSequenceClassification.from_pretrained(model_path, local_files_only=True)
+                model.eval()
+            
+            st.success("✅ Model downloaded and loaded successfully from GitHub Releases!")
+            st.sidebar.success("✅ BERT model ready!")
+            return model, tokenizer, True
+            
+    except requests.exceptions.RequestException as e:
+        st.error(f"❌ Failed to download from GitHub: {e}")
+        st.info("Please check that your GitHub release exists and is public.")
+        return None, None, False
     except Exception as e:
-        st.error(f"❌ Failed to download model: {e}")
+        st.error(f"❌ Unexpected error: {e}")
         st.info("Falling back to Mock API...")
         return None, None, False
 
 # ================================================================
-# LOAD THE MODEL - THIS MUST BE BEFORE ANY CODE THAT USES bert_loaded
+# LOAD THE MODEL
 # ================================================================
-bert_model, bert_tokenizer, bert_loaded = download_and_load_model()
+bert_model, bert_tokenizer, bert_loaded = download_from_github()
 
 # ================================================================
 # PREPROCESSING FUNCTION
@@ -606,7 +615,7 @@ def predict_with_bert(text):
             "confidence": 0.5,
             "reasons": ["Empty tweet after preprocessing"],
             "detected_disasters": [],
-            "model_used": "BERT",
+            "model_used": "BERT (GitHub)",
             "response_time": time.time() - start_time,
             "word_count": 0,
             "exclamation_count": 0,
@@ -1028,7 +1037,7 @@ connection_status = "Local Mode - Data stored in session"
 
 # Determine which model is active
 if bert_loaded:
-    model_display = "🧠 BERT Model"
+    model_display = "🧠 BERT Model (GitHub)"
     model_badge_class = "bert-badge"
 else:
     model_display = "🔍 Mock API"
@@ -1038,10 +1047,11 @@ st.markdown(
     f'''
     <div class="main-header">
         <h1 style="font-size: 3em; margin-bottom: 10px;">🤖 Disaster Tweet AI Detector</h1>
-        <p style="font-size: 1.2em; opacity: 0.9;">Powered by BERT Model + Mock API</p>
+        <p style="font-size: 1.2em; opacity: 0.9;">Powered by BERT Model from GitHub Releases</p>
         <div style="margin-top: 20px;">
             <span class="{model_badge_class}">{model_display}</span>
             <span class="status-badge local-badge">⚫ LOCAL</span>
+            <span class="status-badge github-badge">🐙 GitHub Releases</span>
         </div>
         <p style="margin-top: 15px; font-size: 0.9em; opacity: 0.8;">Session: {st.session_state["session_id"]}</p>
     </div>
@@ -1062,7 +1072,7 @@ with st.sidebar:
     with col1:
         if bert_loaded:
             st.success("✅ BERT Model")
-            st.caption("Model loaded successfully")
+            st.caption("Loaded from GitHub")
         else:
             st.error("❌ BERT Model")
             st.caption("Using Mock API fallback")
@@ -1082,7 +1092,7 @@ with st.sidebar:
     model_options.append("mock")
     
     model_labels = {
-        "bert": "🧠 BERT Model (More Accurate)",
+        "bert": "🧠 BERT Model (GitHub)",
         "mock": "🔍 Mock API (Always Available)"
     }
     
@@ -1189,7 +1199,7 @@ with col1:
 # ANALYSIS EXECUTION
 # ================================================================
 if analyze_clicked and tweet:
-    model_name = "BERT" if st.session_state["model_choice"] == "bert" else "Mock API"
+    model_name = "BERT (GitHub)" if st.session_state["model_choice"] == "bert" else "Mock API"
     
     with st.spinner(f"🤖 {model_name} analyzing..."):
         
@@ -1295,11 +1305,11 @@ st.markdown(
     f'''
     <div style="text-align: center; padding: 20px; background: linear-gradient(135deg, #667eea10, #764ba210); border-radius: 15px;">
         <p style="color: #666;">
-            🤖 Disaster Tweet AI Detector | Powered by BERT Model + Mock API<br>
+            🤖 Disaster Tweet AI Detector | Powered by BERT Model from GitHub Releases<br>
             Session: {st.session_state["session_id"]} | {connection_status}
         </p>
         <p style="color: #888; font-size: 0.8em;">
-            ✅ BERT Model: {"LOADED" if bert_loaded else "NOT FOUND (using Mock API)"}
+            ✅ BERT Model: {"LOADED from GitHub" if bert_loaded else "NOT FOUND (using Mock API)"}
         </p>
     </div>
     ''',
