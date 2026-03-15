@@ -25,8 +25,8 @@ from transformers import AutoTokenizer, AutoModelForSequenceClassification
 import joblib
 import nltk
 from nltk.corpus import stopwords
-import zipfile  # Added for zip file handling
-import io      # Added for file operations
+import zipfile
+import io
 
 # ================================================================
 # PAGE CONFIG
@@ -440,7 +440,7 @@ DISASTER_KEYWORDS = {
 }
 
 # ================================================================
-# IMPROVED DOWNLOAD MODEL FUNCTION
+# DOWNLOAD MODEL FUNCTION
 # ================================================================
 
 @st.cache_resource(show_spinner="🔄 Loading BERT model...")
@@ -465,8 +465,9 @@ def download_and_load_model():
     # If not found or corrupted, download from cloud
     st.info("📥 BERT model not found locally. Downloading from cloud storage...")
     
-    # Your direct download link
-    download_url = "https://drive.google.com/file/d/1iUBsn-eNIBftXxzzW65Z8wYXg1IgYhRt/view?usp=sharing"
+    # Your Google Drive file ID
+    file_id = "1iUBsn-eNIBftXxzzW65Z8wYXg1IgYhRt"
+    download_url = f"https://drive.google.com/file/d/1iUBsn-eNIBftXxzzW65Z8wYXg1IgYhRt/view?usp=sharing"
     
     try:
         # Create a session to handle cookies
@@ -479,9 +480,11 @@ def download_and_load_model():
         if "confirm" in response.url:
             # Extract confirm code
             import re
-            confirm_code = re.search(r'confirm=([0-9A-Za-z]+)', response.url).group(1)
-            download_url = f"https://drive.google.com/file/d/1iUBsn-eNIBftXxzzW65Z8wYXg1IgYhRt/view?usp=sharing"
-            response = session.get(download_url, stream=True)
+            confirm_match = re.search(r'confirm=([0-9A-Za-z]+)', response.url)
+            if confirm_match:
+                confirm_code = confirm_match.group(1)
+                download_url = f"https://drive.google.com/file/d/1iUBsn-eNIBftXxzzW65Z8wYXg1IgYhRt/view?usp=sharing"
+                response = session.get(download_url, stream=True)
         
         response.raise_for_status()
         
@@ -492,8 +495,15 @@ def download_and_load_model():
         content_type = response.headers.get('content-type', '')
         if 'text/html' in content_type:
             st.error("❌ Google Drive is returning an HTML page instead of the file.")
-            st.info("This often happens with large files. Please try the alternative method below.")
-            return None, None, False
+            st.info("This often happens with large files. Trying alternative download method...")
+            
+            # Alternative method: use the download URL with confirm=1
+            alt_url = f"https://drive.google.com/uc?export=download&confirm=1&id={file_id}"
+            response = session.get(alt_url, stream=True)
+            
+            if 'text/html' in response.headers.get('content-type', ''):
+                st.error("❌ Still getting HTML. The file might be too large or not publicly shared.")
+                return None, None, False
         
         # Download with progress
         progress_bar = st.progress(0)
@@ -549,6 +559,11 @@ def download_and_load_model():
         st.error(f"❌ Failed to download model: {e}")
         st.info("Falling back to Mock API...")
         return None, None, False
+
+# ================================================================
+# LOAD THE MODEL - THIS MUST BE BEFORE ANY CODE THAT USES bert_loaded
+# ================================================================
+bert_model, bert_tokenizer, bert_loaded = download_and_load_model()
 
 # ================================================================
 # PREPROCESSING FUNCTION
