@@ -1,5 +1,5 @@
 # ================================================================
-# ENHANCED DISASTER TWEET AI DETECTOR - PREMIUM UI
+# ENHANCED DISASTER TWEET AI DETECTOR - WITH FAKE VS REAL DETECTION
 # ================================================================
 
 import streamlit as st
@@ -24,10 +24,10 @@ import base64
 # PAGE CONFIG
 # ================================================================
 st.set_page_config(
-    page_title="Disaster Tweet AI Detector | Real-time Analysis",
+    page_title="Disaster Tweet AI Detector | Fake vs Real Analysis",
     layout="wide",
     initial_sidebar_state="expanded",
-    page_icon="🌪️"
+    page_icon="🎯"
 )
 
 # ================================================================
@@ -77,23 +77,40 @@ st.markdown("""
         100% { background-position: 0% 50%; }
     }
     
-    .main-header::before {
-        content: '';
-        position: absolute;
-        top: -50%;
-        left: -50%;
-        width: 200%;
-        height: 200%;
-        background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
-        animation: rotate 20s linear infinite;
+    /* Fake/Real Badges */
+    .fake-badge {
+        background: linear-gradient(135deg, #ff6b6b, #ee5253);
+        color: white;
+        padding: 15px 30px;
+        border-radius: 50px;
+        font-size: 1.5em;
+        font-weight: 800;
+        display: inline-block;
+        margin: 10px;
+        box-shadow: 0 10px 20px rgba(255, 107, 107, 0.3);
+        animation: pulse 2s infinite;
     }
     
-    @keyframes rotate {
-        from { transform: rotate(0deg); }
-        to { transform: rotate(360deg); }
+    .real-badge {
+        background: linear-gradient(135deg, #10ac84, #1dd1a1);
+        color: white;
+        padding: 15px 30px;
+        border-radius: 50px;
+        font-size: 1.5em;
+        font-weight: 800;
+        display: inline-block;
+        margin: 10px;
+        box-shadow: 0 10px 20px rgba(16, 172, 132, 0.3);
+        animation: pulse 2s infinite;
     }
     
-    /* Glowing badges */
+    @keyframes pulse {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+        100% { transform: scale(1); }
+    }
+    
+    /* Status badges */
     .status-badge {
         display: inline-block;
         padding: 10px 25px;
@@ -122,82 +139,29 @@ st.markdown("""
         color: white;
     }
     
-    .stats-badge {
-        background: linear-gradient(135deg, #48bb78, #38a169);
-        color: white;
-    }
-    
-    /* Glass cards */
-    .glass-card {
-        background: rgba(255, 255, 255, 0.9);
-        backdrop-filter: blur(10px);
-        border-radius: 20px;
-        padding: 25px;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-        transition: all 0.3s ease;
-        border: 1px solid rgba(255,255,255,0.2);
-        margin: 15px 0;
-    }
-    
-    .glass-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 20px 40px rgba(102,126,234,0.2);
-    }
-    
-    /* Animated probability bar */
-    .probability-container {
-        background: rgba(0,0,0,0.05);
+    /* Fake/Real Indicator Cards */
+    .indicator-card {
+        background: white;
+        padding: 20px;
         border-radius: 15px;
-        padding: 8px;
-        margin: 20px 0;
+        margin: 10px 0;
+        border-left: 5px solid;
+        transition: all 0.3s ease;
     }
     
-    .probability-bar {
-        height: 50px;
-        border-radius: 12px;
-        overflow: hidden;
-        display: flex;
-        box-shadow: inset 0 2px 5px rgba(0,0,0,0.1);
+    .fake-indicator {
+        border-left-color: #ff6b6b;
+        background: linear-gradient(90deg, #fff5f5, white);
     }
     
-    .disaster-segment {
-        background: linear-gradient(90deg, #ff6b6b, #ee5253);
-        color: white;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-weight: bold;
-        font-size: 1.1em;
-        transition: width 1s ease-in-out;
-        position: relative;
-        overflow: hidden;
+    .real-indicator {
+        border-left-color: #10ac84;
+        background: linear-gradient(90deg, #f0fff4, white);
     }
     
-    .disaster-segment::after {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
-        animation: shimmer 2s infinite;
-    }
-    
-    .non-disaster-segment {
-        background: linear-gradient(90deg, #10ac84, #1dd1a1);
-        color: white;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-weight: bold;
-        font-size: 1.1em;
-        transition: width 1s ease-in-out;
-    }
-    
-    @keyframes shimmer {
-        0% { transform: translateX(-100%); }
-        100% { transform: translateX(100%); }
+    .indicator-card:hover {
+        transform: translateX(5px);
+        box-shadow: 0 10px 20px rgba(0,0,0,0.1);
     }
     
     /* Metric cards */
@@ -275,20 +239,12 @@ st.markdown("""
         color: white !important;
     }
     
-    /* Example buttons */
-    .example-button {
-        background: white !important;
-        color: #667eea !important;
-        border: 2px solid #667eea !important;
-        padding: 10px 20px !important;
-    }
-    
     /* Alert styles */
     .alert-box {
-        padding: 25px;
+        padding: 30px;
         border-radius: 20px;
         color: white;
-        font-size: 1.3em;
+        font-size: 1.5em;
         font-weight: bold;
         text-align: center;
         margin: 20px 0;
@@ -296,11 +252,11 @@ st.markdown("""
         box-shadow: 0 15px 30px rgba(0,0,0,0.2);
     }
     
-    .disaster-alert {
+    .fake-alert {
         background: linear-gradient(135deg, #ff6b6b, #ee5253);
     }
     
-    .safe-alert {
+    .real-alert {
         background: linear-gradient(135deg, #10ac84, #1dd1a1);
     }
     
@@ -315,22 +271,21 @@ st.markdown("""
         }
     }
     
-    /* Live feed table */
-    .dataframe {
-        border-radius: 20px !important;
-        overflow: hidden !important;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.1) !important;
+    /* Confidence meter */
+    .confidence-meter {
+        width: 100%;
+        height: 20px;
+        background: #f0f0f0;
+        border-radius: 10px;
+        overflow: hidden;
+        margin: 10px 0;
     }
     
-    .dataframe th {
-        background: linear-gradient(135deg, #667eea, #5a67d8) !important;
-        color: white !important;
-        padding: 15px !important;
-        font-weight: 600 !important;
-    }
-    
-    .dataframe td {
-        padding: 12px !important;
+    .confidence-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #667eea, #5a67d8);
+        border-radius: 10px;
+        transition: width 1s ease-in-out;
     }
     
     /* Footer */
@@ -349,13 +304,13 @@ st.markdown("""
             margin: 10px;
         }
         
-        .metric-value {
-            font-size: 2em;
+        .fake-badge, .real-badge {
+            font-size: 1.2em;
+            padding: 10px 20px;
         }
         
-        .alert-box {
-            font-size: 1em;
-            padding: 15px;
+        .metric-value {
+            font-size: 2em;
         }
     }
 </style>
@@ -387,13 +342,11 @@ if "analyses" not in st.session_state:
 if "stats" not in st.session_state:
     st.session_state["stats"] = {
         "total": 0,
-        "disasters": 0,
-        "safe": 0,
+        "fake": 0,
+        "real": 0,
         "locations": {},
         "keywords": {}
     }
-if "theme" not in st.session_state:
-    st.session_state["theme"] = "light"
 
 # ================================================================
 # CONSTANTS
@@ -407,18 +360,104 @@ MALAYSIA_LOCATIONS = [
     'Klang', 'Putrajaya', 'Cameron Highlands', 'Kota Kinabalu', 'Kuching'
 ]
 
-DISASTER_KEYWORDS = {
-    "🌊 Flood": ['flood', 'banjir', 'inundation', 'water level', 'banjir kilat'],
-    "🌋 Earthquake": ['earthquake', 'gempa', 'tremor', 'seismic', 'gempa bumi'],
-    "⛈️ Storm": ['storm', 'thunderstorm', 'ribut', 'petir', 'lightning', 'ribut petir'],
-    "🏔️ Landslide": ['landslide', 'tanah runtuh', 'mudslide', 'runtuh'],
-    "🔥 Fire": ['fire', 'kebakaran', 'burning', 'api'],
-    "🌊 Tsunami": ['tsunami', 'tidal wave', 'gelombang tsunami'],
-    "💨 Wind": ['wind', 'angin', 'gale', 'tornado', 'angin kencang']
+# ================================================================
+# FAKE NEWS DETECTION PATTERNS
+# ================================================================
+
+FAKE_PATTERNS = {
+    "urgency": {
+        "keywords": ['urgent', 'breaking', 'alert', 'warning', '!!!', '🚨', 'segera', 'penting', 'asap'],
+        "weight": 1.5,
+        "icon": "🚨",
+        "description": "Urgency markers - common in fake news"
+    },
+    "sensational": {
+        "keywords": ['unbelievable', 'shocking', 'massive', 'worst ever', 'catastrophic', 'devastating', 
+                    'horrific', 'terrible', 'never seen', 'unprecedented', 'historical'],
+        "weight": 2.0,
+        "icon": "📢",
+        "description": "Sensational language - exaggerates the situation"
+    },
+    "conspiracy": {
+        "keywords": ['government hiding', 'they don\'t want you', 'secret', 'hidden truth', 'cover up',
+                    'censored', 'banned', 'suppressed', 'lying to you'],
+        "weight": 2.5,
+        "icon": "🔮",
+        "description": "Conspiracy theories - undermines official sources"
+    },
+    "sharing": {
+        "keywords": ['share', 'spread', 'viral', 'forward', 'retweet', 'repost', 'kongsi', 'sebarkan',
+                    'tell everyone', 'pass it on', 'go viral'],
+        "weight": 1.5,
+        "icon": "🔄",
+        "description": "Share requests - attempts to spread misinformation"
+    },
+    "emotional": {
+        "keywords": ['pray', 'please help', 'omg', '😱', '🙏', 'tragedy', 'heartbreaking', 'crying',
+                    'terrified', 'scared', 'help them', 'save them'],
+        "weight": 1.0,
+        "icon": "😢",
+        "description": "Emotional manipulation - plays on feelings"
+    },
+    "vague": {
+        "keywords": ['they say', 'rumors', 'allegedly', 'someone said', 'apparently', 'heard that',
+                    'kata orang', 'konon', 'maybe', 'perhaps', 'could be'],
+        "weight": 1.2,
+        "icon": "❓",
+        "description": "Vague sources - no clear attribution"
+    }
 }
 
-URGENCY_INDICATORS = ['urgent', 'breaking', 'alert', 'warning', '!!!', '🚨', 'segera', 'penting']
-SENSATIONAL_INDICATORS = ['unbelievable', 'shocking', 'massive', 'worst ever', 'catastrophic', 'devastating']
+# ================================================================
+# REAL NEWS DETECTION PATTERNS
+# ================================================================
+
+REAL_PATTERNS = {
+    "official_sources": {
+        "keywords": ['according to', 'reported by', 'official', 'authorities', 'confirmed', 'verified',
+                    'jps', 'met malaysia', 'jabatan bomba', 'bomba', 'polis', 'police', 'nadma',
+                    'statement from', 'press release', 'minister', 'department'],
+        "weight": 2.0,
+        "icon": "📰",
+        "description": "Official sources - credible information"
+    },
+    "specific_data": {
+        "keywords": ['meter', 'km', 'mm', 'celsius', 'magnitude', 'level', 'depth', 'volume',
+                    'number of', 'total', 'count', 'estimated', 'approximately'],
+        "weight": 1.5,
+        "icon": "📊",
+        "description": "Specific measurements - adds credibility"
+    },
+    "details": {
+        "keywords": ['at', 'on', 'date', 'time', 'location', 'coordinates', 'reported at',
+                    'occurred at', 'happened at', 'situated at'],
+        "weight": 1.2,
+        "icon": "📍",
+        "description": "Specific details - provides context"
+    },
+    "url": {
+        "keywords": ['http', 'https', 'www.', '.com', '.my', '.gov', '.org'],
+        "weight": 1.8,
+        "icon": "🔗",
+        "description": "Reference link - can verify information"
+    }
+}
+
+# ================================================================
+# DISASTER KEYWORDS
+# ================================================================
+
+DISASTER_KEYWORDS = {
+    "🌊 Flood": ['flood', 'banjir', 'inundation', 'water level', 'banjir kilat', 'air naik'],
+    "🌋 Earthquake": ['earthquake', 'gempa', 'tremor', 'seismic', 'gempa bumi', 'gempabumi'],
+    "⛈️ Storm": ['storm', 'thunderstorm', 'ribut', 'petir', 'lightning', 'ribut petir', 'badai'],
+    "🏔️ Landslide": ['landslide', 'tanah runtuh', 'mudslide', 'runtuh', 'tanah longsor'],
+    "🔥 Fire": ['fire', 'kebakaran', 'burning', 'api', 'terbakar'],
+    "🌊 Tsunami": ['tsunami', 'tidal wave', 'gelombang tsunami', 'ombak besar'],
+    "💨 Wind": ['wind', 'angin', 'gale', 'tornado', 'angin kencang', 'puting beliung'],
+    "🌫️ Haze": ['haze', 'jerebu', 'smoke', 'asap', 'kabut asap'],
+    "☀️ Heatwave": ['heatwave', 'gelombang panas', 'heat stroke', 'suhu tinggi']
+}
 
 # ================================================================
 # PREPROCESSING FUNCTION
@@ -427,10 +466,24 @@ SENSATIONAL_INDICATORS = ['unbelievable', 'shocking', 'massive', 'worst ever', '
 def preprocess_tweet(text):
     """Clean and preprocess tweet text"""
     if pd.isna(text) or text == "":
-        return ""
+        return {
+            "clean": "",
+            "original": "",
+            "word_count": 0,
+            "char_count": 0,
+            "exclamation": 0,
+            "question": 0,
+            "caps_words": 0,
+            "has_url": False,
+            "numbers": 0,
+            "urls": []
+        }
     
     # Save original for metrics
     original = text
+    
+    # Extract URLs
+    urls = re.findall(r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+])+', original)
     
     text = str(text).lower()
     text = re.sub(r"http\S+|www\S+|https\S+", "", text)
@@ -440,6 +493,7 @@ def preprocess_tweet(text):
     text = re.sub(r"\s+", " ", text).strip()
     
     tokens = [word for word in text.split() if word not in stop_words]
+    
     return {
         "clean": " ".join(tokens),
         "original": original,
@@ -448,181 +502,332 @@ def preprocess_tweet(text):
         "exclamation": original.count('!'),
         "question": original.count('?'),
         "caps_words": sum(1 for word in original.split() if word.isupper() and len(word) > 2),
-        "has_url": bool(re.search(r'http[s]?://', original.lower())),
-        "numbers": len(re.findall(r'\d+', original))
+        "has_url": len(urls) > 0,
+        "numbers": len(re.findall(r'\d+', original)),
+        "urls": urls
     }
 
 # ================================================================
-# ENHANCED PREDICTION FUNCTION
+# FAKE VS REAL DETECTION FUNCTION
 # ================================================================
 
-def analyze_tweet(text):
-    """Enhanced analysis with multiple factors"""
+def detect_fake_vs_real(text):
+    """
+    Advanced detection of fake vs real disaster tweets
+    Returns detailed analysis with scores and indicators
+    """
     start_time = time.time()
     
     # Preprocess
     processed = preprocess_tweet(text)
-    text_lower = processed["clean"]
-    original_lower = text.lower()
+    text_lower = text.lower()
     
-    # Scoring
-    disaster_score = 0
-    safe_score = 0
-    
-    # Disaster keyword scoring
+    # Initialize scoring
+    fake_score = 0
+    real_score = 0
+    fake_indicators = []
+    real_indicators = []
     detected_disasters = []
-    keyword_matches = {}
+    
+    # ================================================================
+    # FAKE NEWS DETECTION
+    # ================================================================
+    
+    # Check each fake pattern
+    for pattern_name, pattern in FAKE_PATTERNS.items():
+        matches = [kw for kw in pattern["keywords"] if kw in text_lower]
+        if matches:
+            match_count = len(matches)
+            points = match_count * pattern["weight"]
+            fake_score += points
+            
+            fake_indicators.append({
+                "type": pattern_name,
+                "icon": pattern["icon"],
+                "matches": matches[:5],
+                "count": match_count,
+                "points": points,
+                "description": pattern["description"]
+            })
+    
+    # Check for excessive exclamation marks
+    if processed["exclamation"] > 3:
+        extra_points = processed["exclamation"] * 0.5
+        fake_score += extra_points
+        fake_indicators.append({
+            "type": "excessive_exclamation",
+            "icon": "❗",
+            "matches": [f"{processed['exclamation']} exclamation marks"],
+            "count": processed["exclamation"],
+            "points": extra_points,
+            "description": "Excessive exclamation marks - emotional manipulation"
+        })
+    
+    # Check for ALL CAPS words
+    if processed["caps_words"] > 2:
+        extra_points = processed["caps_words"] * 0.5
+        fake_score += extra_points
+        fake_indicators.append({
+            "type": "all_caps",
+            "icon": "📣",
+            "matches": [f"{processed['caps_words']} words in ALL CAPS"],
+            "count": processed["caps_words"],
+            "points": extra_points,
+            "description": "SHOUTING - attempts to create urgency"
+        })
+    
+    # ================================================================
+    # REAL NEWS DETECTION
+    # ================================================================
+    
+    # Check each real pattern
+    for pattern_name, pattern in REAL_PATTERNS.items():
+        matches = [kw for kw in pattern["keywords"] if kw in text_lower]
+        if matches:
+            match_count = len(matches)
+            points = match_count * pattern["weight"]
+            real_score += points
+            
+            real_indicators.append({
+                "type": pattern_name,
+                "icon": pattern["icon"],
+                "matches": matches[:5],
+                "count": match_count,
+                "points": points,
+                "description": pattern["description"]
+            })
+    
+    # Check for specific numbers (credibility boost)
+    if processed["numbers"] > 2:
+        extra_points = processed["numbers"] * 0.3
+        real_score += extra_points
+        real_indicators.append({
+            "type": "specific_numbers",
+            "icon": "🔢",
+            "matches": [f"{processed['numbers']} numbers found"],
+            "count": processed["numbers"],
+            "points": extra_points,
+            "description": "Specific numbers - adds credibility"
+        })
+    
+    # Check for URLs (can verify information)
+    if processed["has_url"]:
+        extra_points = 2.0
+        real_score += extra_points
+        real_indicators.append({
+            "type": "has_url",
+            "icon": "🔗",
+            "matches": processed["urls"][:2],
+            "count": len(processed["urls"]),
+            "points": extra_points,
+            "description": "Contains reference links - can verify"
+        })
+    
+    # Check for detailed information
+    if processed["word_count"] > 20:
+        extra_points = 1.0
+        real_score += extra_points
+        real_indicators.append({
+            "type": "detailed",
+            "icon": "📝",
+            "matches": [f"{processed['word_count']} words"],
+            "count": 1,
+            "points": extra_points,
+            "description": "Detailed information - more credible"
+        })
+    
+    # ================================================================
+    # DISASTER TYPE DETECTION
+    # ================================================================
     
     for disaster, keywords in DISASTER_KEYWORDS.items():
-        matches = [kw for kw in keywords if kw in original_lower]
+        matches = [kw for kw in keywords if kw in text_lower]
         if matches:
-            detected_disasters.append(disaster)
-            keyword_matches[disaster] = matches
-            disaster_score += len(matches) * 2
+            detected_disasters.append({
+                "name": disaster,
+                "keywords": matches[:3],
+                "count": len(matches)
+            })
     
-    # Urgency scoring
-    urgency_matches = [ind for ind in URGENCY_INDICATORS if ind in original_lower]
-    if urgency_matches:
-        disaster_score += len(urgency_matches) * 1.5
+    # ================================================================
+    # PROBABILITY CALCULATION
+    # ================================================================
     
-    # Sensational scoring
-    sensational_matches = [ind for ind in SENSATIONAL_INDICATORS if ind in original_lower]
-    if sensational_matches:
-        disaster_score += len(sensational_matches) * 2
-    
-    # Safe indicators
-    safe_indicators = ['good morning', 'good night', 'hello', 'thanks', 'thank you',
-                       'welcome', 'please', 'happy', 'love', 'great', 'awesome']
-    
-    safe_matches = [ind for ind in safe_indicators if ind in original_lower]
-    if safe_matches:
-        safe_score += len(safe_matches) * 2
-    
-    # Text metrics adjustment
-    if processed["exclamation"] > 3:
-        disaster_score += processed["exclamation"] * 0.5
-    
-    if processed["caps_words"] > 2:
-        disaster_score += processed["caps_words"] * 0.5
-    
-    if processed["has_url"]:
-        safe_score += 2
-    
-    if processed["numbers"] > 2:
-        safe_score += processed["numbers"] * 0.3
-    
-    # Calculate probability
-    total = disaster_score + safe_score
-    if total > 0:
-        disaster_prob = disaster_score / total
+    total_score = fake_score + real_score
+    if total_score > 0:
+        fake_probability = fake_score / total_score
+        real_probability = real_score / total_score
     else:
-        disaster_prob = 0.5
+        fake_probability = 0.5
+        real_probability = 0.5
     
-    # Calculate confidence
-    confidence = abs(disaster_prob - 0.5) * 2
+    # Determine if fake or real
+    is_fake = fake_probability > 0.5
     
-    # Generate reasons
+    # Calculate confidence (distance from 0.5)
+    confidence = abs(fake_probability - 0.5) * 2
+    
+    # Determine verdict
+    if confidence > 0.8:
+        verdict = "HIGH CONFIDENCE"
+    elif confidence > 0.6:
+        verdict = "MEDIUM CONFIDENCE"
+    elif confidence > 0.4:
+        verdict = "LOW CONFIDENCE"
+    else:
+        verdict = "UNCERTAIN"
+    
+    # Generate final reasons
     reasons = []
-    if disaster_prob > 0.6:
-        if urgency_matches:
-            reasons.append(f"🚨 Urgent language detected: {', '.join(urgency_matches[:3])}")
-        if sensational_matches:
-            reasons.append(f"📢 Sensational language: {', '.join(sensational_matches[:3])}")
-        if detected_disasters:
-            reasons.append(f"🌪️ Disaster mentions: {', '.join(detected_disasters)}")
-        if processed["exclamation"] > 3:
-            reasons.append(f"❗ High emotion ({processed['exclamation']} exclamation marks)")
-        if processed["caps_words"] > 2:
-            reasons.append(f"📣 SHOUTING detected ({processed['caps_words']} words in ALL CAPS)")
-    else:
-        if safe_matches:
-            reasons.append(f"✅ Normal conversation indicators: {', '.join(safe_matches[:3])}")
-        if processed["has_url"]:
-            reasons.append("🔗 Contains credible link")
-        if processed["numbers"] > 2:
-            reasons.append(f"📊 Specific data points ({processed['numbers']} numbers)")
-        if processed["word_count"] > 20:
-            reasons.append("📝 Detailed information provided")
     
-    if not reasons:
-        reasons.append("ℹ️ No strong indicators - neutral classification")
+    if is_fake:
+        reasons.append(f"🔴 **FAKE DISASTER TWEET** - {verdict}")
+        if fake_indicators:
+            reasons.append("📊 **Fake Indicators Found:**")
+            for ind in fake_indicators[:3]:
+                reasons.append(f"  {ind['icon']} {ind['description']} ({ind['count']} matches)")
+    else:
+        reasons.append(f"✅ **REAL DISASTER TWEET** - {verdict}")
+        if real_indicators:
+            reasons.append("📊 **Real Indicators Found:**")
+            for ind in real_indicators[:3]:
+                reasons.append(f"  {ind['icon']} {ind['description']} ({ind['count']} matches)")
+    
+    if detected_disasters:
+        reasons.append("🌪️ **Disaster Types Detected:**")
+        for d in detected_disasters:
+            reasons.append(f"  {d['name']}")
     
     return {
-        "is_disaster": disaster_prob > 0.5,
-        "probability": disaster_prob,
+        "is_fake": is_fake,
+        "fake_probability": fake_probability,
+        "real_probability": real_probability,
+        "fake_score": fake_score,
+        "real_score": real_score,
         "confidence": confidence,
-        "reasons": reasons[:5],
-        "disaster_types": detected_disasters,
-        "urgency": len(urgency_matches),
-        "sensational": len(sensational_matches),
+        "verdict": verdict,
+        "fake_indicators": fake_indicators,
+        "real_indicators": real_indicators,
+        "detected_disasters": detected_disasters,
+        "reasons": reasons,
         "metrics": processed,
-        "response_time": time.time() - start_time,
-        "keyword_matches": keyword_matches
+        "response_time": time.time() - start_time
     }
 
 # ================================================================
 # DISPLAY FUNCTIONS
 # ================================================================
 
-def display_probability_bar(prob):
-    """Display animated probability bar"""
-    disaster_width = prob * 100
-    safe_width = (1 - prob) * 100
+def display_fake_real_banner(result):
+    """Display fake/real detection banner"""
     
-    st.markdown(f"""
-    <div class="probability-container">
-        <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
-            <span style="color: #ff6b6b; font-weight: 600;">🔥 DISASTER: {disaster_width:.1f}%</span>
-            <span style="color: #10ac84; font-weight: 600;">✅ SAFE: {safe_width:.1f}%</span>
-        </div>
-        <div class="probability-bar">
-            <div class="disaster-segment" style="width: {disaster_width}%;">
-                {disaster_width:.1f}%
+    if result["is_fake"]:
+        st.markdown(
+            f'''
+            <div class="alert-box fake-alert">
+                🔴 FAKE DISASTER TWEET DETECTED
+                <div style="font-size: 0.7em; margin-top: 10px;">
+                    Confidence: {result["confidence"]*100:.1f}% | {result["verdict"]}
+                </div>
             </div>
-            <div class="non-disaster-segment" style="width: {safe_width}%;">
-                {safe_width:.1f}%
+            ''',
+            unsafe_allow_html=True
+        )
+        st.markdown(f'<span class="fake-badge">❌ FAKE NEWS</span>', unsafe_allow_html=True)
+    else:
+        st.markdown(
+            f'''
+            <div class="alert-box real-alert">
+                ✅ REAL DISASTER TWEET - CREDIBLE SOURCE
+                <div style="font-size: 0.7em; margin-top: 10px;">
+                    Confidence: {result["confidence"]*100:.1f}% | {result["verdict"]}
+                </div>
             </div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+            ''',
+            unsafe_allow_html=True
+        )
+        st.markdown(f'<span class="real-badge">✅ REAL NEWS</span>', unsafe_allow_html=True)
 
-def display_metrics_card(analysis):
-    """Display metrics in beautiful cards"""
-    metrics = analysis["metrics"]
+def display_probability_meter(result):
+    """Display fake vs real probability meter"""
     
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2 = st.columns(2)
     
     with col1:
-        st.markdown(f"""
-        <div class="metric-item">
-            <div class="metric-value">{metrics['word_count']}</div>
-            <div class="metric-label">Words</div>
-        </div>
-        """, unsafe_allow_html=True)
+        st.markdown(f"### 🔴 Fake Probability")
+        st.markdown(f"<h2 style='color: #ff6b6b;'>{result['fake_probability']*100:.1f}%</h2>", unsafe_allow_html=True)
+        st.markdown(f"<div class='confidence-meter'><div class='confidence-fill' style='width: {result['fake_probability']*100}%; background: #ff6b6b;'></div></div>", unsafe_allow_html=True)
     
     with col2:
-        st.markdown(f"""
-        <div class="metric-item">
-            <div class="metric-value">{metrics['exclamation']}</div>
-            <div class="metric-label">Exclamation</div>
-        </div>
-        """, unsafe_allow_html=True)
+        st.markdown(f"### ✅ Real Probability")
+        st.markdown(f"<h2 style='color: #10ac84;'>{result['real_probability']*100:.1f}%</h2>", unsafe_allow_html=True)
+        st.markdown(f"<div class='confidence-meter'><div class='confidence-fill' style='width: {result['real_probability']*100}%; background: #10ac84;'></div></div>", unsafe_allow_html=True)
+
+def display_indicators(result):
+    """Display fake and real indicators"""
     
-    with col3:
-        st.markdown(f"""
-        <div class="metric-item">
-            <div class="metric-value">{metrics['caps_words']}</div>
-            <div class="metric-label">ALL CAPS</div>
-        </div>
-        """, unsafe_allow_html=True)
+    col1, col2 = st.columns(2)
     
-    with col4:
-        st.markdown(f"""
-        <div class="metric-item">
-            <div class="metric-value">{metrics['numbers']}</div>
-            <div class="metric-label">Numbers</div>
-        </div>
-        """, unsafe_allow_html=True)
+    with col1:
+        st.markdown("### 🚨 Fake News Indicators")
+        if result["fake_indicators"]:
+            for ind in result["fake_indicators"]:
+                st.markdown(f"""
+                <div class="indicator-card fake-indicator">
+                    <div style="display: flex; justify-content: space-between;">
+                        <span><strong>{ind['icon']} {ind['type'].replace('_', ' ').title()}</strong></span>
+                        <span style="color: #ff6b6b;">+{ind['points']:.1f} points</span>
+                    </div>
+                    <div style="color: #666; font-size: 0.9em;">{ind['description']}</div>
+                    <div style="color: #888; font-size: 0.8em; margin-top: 5px;">
+                        Found: {', '.join(ind['matches'][:3])}
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+        else:
+            st.info("No fake news indicators detected")
+    
+    with col2:
+        st.markdown("### ✅ Real News Indicators")
+        if result["real_indicators"]:
+            for ind in result["real_indicators"]:
+                st.markdown(f"""
+                <div class="indicator-card real-indicator">
+                    <div style="display: flex; justify-content: space-between;">
+                        <span><strong>{ind['icon']} {ind['type'].replace('_', ' ').title()}</strong></span>
+                        <span style="color: #10ac84;">+{ind['points']:.1f} points</span>
+                    </div>
+                    <div style="color: #666; font-size: 0.9em;">{ind['description']}</div>
+                    <div style="color: #888; font-size: 0.8em; margin-top: 5px;">
+                        Found: {', '.join(ind['matches'][:3])}
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+        else:
+            st.info("No real news indicators detected")
+
+def display_metrics(result):
+    """Display text metrics"""
+    
+    metrics = result["metrics"]
+    
+    cols = st.columns(5)
+    metric_data = [
+        ("Words", metrics["word_count"], "📝"),
+        ("Exclamation", metrics["exclamation"], "❗"),
+        ("ALL CAPS", metrics["caps_words"], "📣"),
+        ("Numbers", metrics["numbers"], "🔢"),
+        ("URLs", len(metrics["urls"]), "🔗")
+    ]
+    
+    for i, (label, value, icon) in enumerate(metric_data):
+        with cols[i]:
+            st.markdown(f"""
+            <div class="metric-item">
+                <div class="metric-value">{value}</div>
+                <div class="metric-label">{icon} {label}</div>
+            </div>
+            """, unsafe_allow_html=True)
 
 def create_location_map(location):
     """Create an interactive map with location"""
@@ -708,12 +913,11 @@ with col2:
     st.markdown(
         f'''
         <div class="main-header">
-            <h1 style="font-size: 3.5em; margin-bottom: 10px;">🌪️ Disaster AI</h1>
-            <p style="font-size: 1.3em; opacity: 0.95;">Real-time Disaster Tweet Analysis</p>
+            <h1 style="font-size: 3.5em; margin-bottom: 10px;">🎯 Disaster AI</h1>
+            <p style="font-size: 1.3em; opacity: 0.95;">Fake vs Real Disaster Tweet Analysis</p>
             <div style="margin-top: 20px;">
                 <span class="status-badge live-badge">🔴 LIVE</span>
-                <span class="status-badge model-badge">🧠 Mock AI</span>
-                <span class="status-badge stats-badge">📊 v2.0</span>
+                <span class="status-badge model-badge">🧠 Fake/Real Detector</span>
             </div>
             <p style="margin-top: 20px; font-size: 0.9em; opacity: 0.8;">
                 Session: {st.session_state["session_id"]}
@@ -724,54 +928,48 @@ with col2:
     )
 
 # ================================================================
-# SIDEBAR - ENHANCED STATS
+# SIDEBAR - STATS
 # ================================================================
 with st.sidebar:
     st.markdown("""
     <div style="background: linear-gradient(135deg, #667eea20, #764ba220); padding: 20px; border-radius: 20px; margin-bottom: 20px;">
-        <h3 style="color: #333; margin-bottom: 15px;">📊 Live Dashboard</h3>
+        <h3 style="color: #333; margin-bottom: 15px;">📊 Detection Statistics</h3>
     </div>
     """, unsafe_allow_html=True)
     
-    # Statistics
     col1, col2 = st.columns(2)
     with col1:
         st.markdown(f"""
         <div style="background: white; padding: 20px; border-radius: 15px; text-align: center;">
-            <div style="font-size: 2.5em; font-weight: 800; color: #667eea;">{st.session_state['stats']['total']}</div>
-            <div style="color: #666;">Total</div>
+            <div style="font-size: 2.5em; font-weight: 800; color: #ff6b6b;">{st.session_state['stats']['fake']}</div>
+            <div style="color: #666;">Fake Detected</div>
         </div>
         """, unsafe_allow_html=True)
     
     with col2:
         st.markdown(f"""
         <div style="background: white; padding: 20px; border-radius: 15px; text-align: center;">
-            <div style="font-size: 2.5em; font-weight: 800; color: #ff6b6b;">{st.session_state['stats']['disasters']}</div>
-            <div style="color: #666;">Disasters</div>
+            <div style="font-size: 2.5em; font-weight: 800; color: #10ac84;">{st.session_state['stats']['real']}</div>
+            <div style="color: #666;">Real Detected</div>
         </div>
         """, unsafe_allow_html=True)
     
-    # Settings
+    st.markdown(f"""
+    <div style="background: white; padding: 20px; border-radius: 15px; text-align: center; margin-top: 10px;">
+        <div style="font-size: 2.5em; font-weight: 800; color: #667eea;">{st.session_state['stats']['total']}</div>
+        <div style="color: #666;">Total Analyses</div>
+    </div>
+    """, unsafe_allow_html=True)
+    
     st.markdown("---")
-    st.markdown("### ⚙️ Settings")
     
     auto_refresh = st.toggle("🔄 Auto-refresh", value=st.session_state["auto_refresh"])
     st.session_state["auto_refresh"] = auto_refresh
     
     if st.button("🗑️ Clear History", use_container_width=True):
         st.session_state["analyses"] = deque(maxlen=50)
-        st.session_state["stats"] = {"total": 0, "disasters": 0, "safe": 0, "locations": {}, "keywords": {}}
+        st.session_state["stats"] = {"total": 0, "fake": 0, "real": 0, "locations": {}, "keywords": {}}
         st.rerun()
-    
-    # Recent stats
-    if st.session_state["analyses"]:
-        st.markdown("---")
-        st.markdown("### 📈 Recent Activity")
-        
-        recent = list(st.session_state["analyses"])[-5:]
-        for r in recent:
-            emoji = "🔴" if r["is_disaster"] else "✅"
-            st.markdown(f"{emoji} {r['tweet'][:30]}... ({r['probability']*100:.0f}%)")
 
 # ================================================================
 # AUTO-REFRESH LOGIC
@@ -784,7 +982,7 @@ if st.session_state["auto_refresh"]:
 # ================================================================
 # INPUT SECTION
 # ================================================================
-st.markdown("### 📝 Enter Tweet")
+st.markdown("### 📝 Enter Tweet for Fake/Real Analysis")
 
 input_col1, input_col2 = st.columns([6, 1])
 
@@ -793,7 +991,7 @@ with input_col1:
     tweet = st.text_area(
         "",
         height=120,
-        placeholder="Example: Heavy rain in Kampar causing flash floods - reported by local authorities...",
+        placeholder="Example: URGENT! BREAKING: Massive earthquake in Kuala Lumpur! Thousands DEAD! SHARE NOW! 😱😱😱",
         key=input_key,
         label_visibility="collapsed"
     )
@@ -807,14 +1005,14 @@ with input_col2:
 # ================================================================
 # QUICK EXAMPLES
 # ================================================================
-st.markdown("### 🎯 Quick Examples")
+st.markdown("### 🎯 Test Examples")
 
 cols = st.columns(4)
 examples = [
-    ("📰 Real News", "Heavy rain in Kampar causing flash floods. According to JPS, water levels rising. 150 residents evacuated."),
-    ("🚨 Fake News", "URGENT! BREAKING: MASSIVE 8.0 earthquake in Kuala Lumpur! Thousands DEAD! SHARE NOW! 😱😱😱"),
-    ("🔄 Mixed", "URGENT! Flood in Johor! Water level 2 meters! Official source says evacuating. JPS confirms."),
-    ("📍 Location", "Landslide reported in Cameron Highlands - authorities responding, 3 people rescued")
+    ("🔴 Fake Example", "URGENT! BREAKING: MASSIVE 8.0 earthquake in Kuala Lumpur! Thousands DEAD! Government hiding truth! SHARE NOW! 😱😱😱"),
+    ("✅ Real Example", "Heavy rain in Kampar causing flash floods. According to JPS, water levels rising. 150 residents evacuated."),
+    ("🔄 Mixed Example", "URGENT! Flood in Johor! Water level 2 meters! Official source says evacuating. JPS confirms."),
+    ("📍 Location Test", "Landslide reported in Cameron Highlands - authorities responding, 3 people rescued")
 ]
 
 for i, (label, text) in enumerate(examples):
@@ -829,14 +1027,14 @@ for i, (label, text) in enumerate(examples):
 # ================================================================
 col1, col2, col3 = st.columns([1, 1, 4])
 with col1:
-    analyze_clicked = st.button("🔍 Analyze", type="primary", use_container_width=True)
+    analyze_clicked = st.button("🔍 Analyze Fake/Real", type="primary", use_container_width=True)
 
 # ================================================================
 # ANALYSIS EXECUTION
 # ================================================================
 if analyze_clicked and tweet:
-    with st.spinner("🤖 AI analyzing..."):
-        result = analyze_tweet(tweet)
+    with st.spinner("🎯 Analyzing for fake vs real indicators..."):
+        result = detect_fake_vs_real(tweet)
         
         if result:
             # Extract location
@@ -848,10 +1046,10 @@ if analyze_clicked and tweet:
             
             # Update stats
             st.session_state["stats"]["total"] += 1
-            if result["is_disaster"]:
-                st.session_state["stats"]["disasters"] += 1
+            if result["is_fake"]:
+                st.session_state["stats"]["fake"] += 1
             else:
-                st.session_state["stats"]["safe"] += 1
+                st.session_state["stats"]["real"] += 1
             
             if location:
                 st.session_state["stats"]["locations"][location] = st.session_state["stats"]["locations"].get(location, 0) + 1
@@ -860,8 +1058,8 @@ if analyze_clicked and tweet:
             analysis_record = {
                 "timestamp": datetime.now().strftime("%H:%M:%S"),
                 "tweet": tweet[:50] + "...",
-                "is_disaster": result["is_disaster"],
-                "probability": result["probability"],
+                "is_fake": result["is_fake"],
+                "confidence": result["confidence"],
                 "location": location
             }
             st.session_state["analyses"].append(analysis_record)
@@ -869,53 +1067,40 @@ if analyze_clicked and tweet:
             # Display results
             st.markdown("---")
             
-            # Alert
-            if result["is_disaster"]:
-                st.markdown(
-                    f'<div class="alert-box disaster-alert">'
-                    f'🔴 DISASTER TWEET DETECTED<br>'
-                    f'<span style="font-size: 0.8em;">Confidence: {result["confidence"]*100:.1f}%</span>'
-                    f'</div>',
-                    unsafe_allow_html=True
-                )
-            else:
-                st.markdown(
-                    f'<div class="alert-box safe-alert">'
-                    f'✅ SAFE TWEET - NO DISASTER<br>'
-                    f'<span style="font-size: 0.8em;">Confidence: {result["confidence"]*100:.1f}%</span>'
-                    f'</div>',
-                    unsafe_allow_html=True
-                )
+            # Fake/Real Banner
+            display_fake_real_banner(result)
             
-            # Probability bar
-            display_probability_bar(result["probability"])
+            # Probability Meter
+            st.markdown("### 📊 Probability Analysis")
+            display_probability_meter(result)
             
-            # Metrics
-            display_metrics_card(result)
+            # Score Summary
+            col1, col2 = st.columns(2)
+            with col1:
+                st.metric("Fake Score", f"{result['fake_score']:.1f} points")
+            with col2:
+                st.metric("Real Score", f"{result['real_score']:.1f} points")
             
-            # Reasons
-            if result["reasons"]:
-                st.markdown("### 🔍 Analysis Reasons")
-                for reason in result["reasons"]:
-                    if "disaster" in reason.lower() or "urgent" in reason.lower():
-                        st.error(f"• {reason}")
-                    elif "safe" in reason.lower() or "normal" in reason.lower():
-                        st.success(f"• {reason}")
-                    else:
-                        st.info(f"• {reason}")
+            # Indicators
+            display_indicators(result)
             
-            # Disaster types
-            if result["disaster_types"]:
-                st.markdown("### 🌪️ Detected Disaster Types")
-                cols = st.columns(len(result["disaster_types"]))
-                for i, d_type in enumerate(result["disaster_types"]):
+            # Text Metrics
+            st.markdown("### 📝 Text Analysis")
+            display_metrics(result)
+            
+            # Disaster Types
+            if result["detected_disasters"]:
+                st.markdown("### 🌪️ Disaster Types Detected")
+                cols = st.columns(len(result["detected_disasters"]))
+                for i, d in enumerate(result["detected_disasters"]):
                     with cols[i]:
                         st.markdown(f"""
                         <div style="background: linear-gradient(135deg, #ff6b6b20, #ee525320); 
                                     padding: 15px; border-radius: 15px; text-align: center;
                                     border: 2px solid #ff6b6b;">
-                            <span style="font-size: 2em;">{d_type.split()[0]}</span><br>
-                            <strong>{d_type.split()[1]}</strong>
+                            <span style="font-size: 2em;">{d['name'].split()[0]}</span><br>
+                            <strong>{d['name'].split()[1]}</strong>
+                            <div style="font-size: 0.8em; color: #666;">{d['count']} keywords</div>
                         </div>
                         """, unsafe_allow_html=True)
             
@@ -926,34 +1111,45 @@ if analyze_clicked and tweet:
                 if fig:
                     st.plotly_chart(fig, use_container_width=True)
             
+            # Reasons
+            if result["reasons"]:
+                st.markdown("### 🔍 Analysis Summary")
+                for reason in result["reasons"]:
+                    if "FAKE" in reason:
+                        st.error(reason)
+                    elif "REAL" in reason:
+                        st.success(reason)
+                    else:
+                        st.info(reason)
+            
             # Performance
             st.markdown(f"""
             <div style="background: linear-gradient(135deg, #667eea10, #764ba210); 
                         padding: 15px; border-radius: 15px; margin-top: 20px;
                         display: flex; justify-content: space-between;">
                 <span>⚡ Response time: {result['response_time']*1000:.0f}ms</span>
-                <span>🤖 Model: Mock AI v2.0</span>
-                <span>📊 Confidence: {result['confidence']*100:.1f}%</span>
+                <span>🤖 Model: Fake/Real Detector v2.0</span>
+                <span>🎯 Verdict: {result['verdict']}</span>
             </div>
             """, unsafe_allow_html=True)
 
 elif analyze_clicked and not tweet:
-    st.warning("⚠️ Please enter a tweet")
+    st.warning("⚠️ Please enter a tweet for analysis")
 
 # ================================================================
 # LIVE FEED
 # ================================================================
 if st.session_state["analyses"]:
     st.markdown("---")
-    st.markdown("### 📡 Live Analysis Feed")
+    st.markdown("### 📡 Recent Analyses")
     
     feed_data = []
     for a in reversed(list(st.session_state["analyses"])[-10:]):
         feed_data.append({
             "Time": a["timestamp"],
             "Tweet": a["tweet"],
-            "Prediction": "🔴 DISASTER" if a["is_disaster"] else "✅ SAFE",
-            "Confidence": f"{a['probability']*100:.1f}%",
+            "Prediction": "🔴 FAKE" if a["is_fake"] else "✅ REAL",
+            "Confidence": f"{a['confidence']*100:.1f}%",
             "Location": a["location"] if a["location"] else "Unknown"
         })
     
@@ -968,16 +1164,16 @@ st.markdown(
     f'''
     <div class="footer">
         <div style="display: flex; justify-content: center; gap: 30px; margin-bottom: 20px;">
-            <span style="background: #667eea; color: white; padding: 8px 20px; border-radius: 30px;">🚀 v2.0</span>
-            <span style="background: #10ac84; color: white; padding: 8px 20px; border-radius: 30px;">⚡ Real-time</span>
-            <span style="background: #f39c12; color: white; padding: 8px 20px; border-radius: 30px;">🔬 AI-Powered</span>
+            <span style="background: #ff6b6b; color: white; padding: 8px 20px; border-radius: 30px;">🔴 Fake Detector</span>
+            <span style="background: #10ac84; color: white; padding: 8px 20px; border-radius: 30px;">✅ Real Detector</span>
+            <span style="background: #667eea; color: white; padding: 8px 20px; border-radius: 30px;">🎯 v2.0</span>
         </div>
         <p style="color: #666;">
-            Disaster Tweet AI Detector | Advanced Real-time Analysis<br>
+            Disaster Tweet AI Detector | Advanced Fake vs Real Analysis<br>
             Session: {st.session_state["session_id"]} | Last sync: {datetime.now().strftime('%H:%M:%S')}
         </p>
         <p style="color: #888; font-size: 0.9em; margin-top: 15px;">
-            ✅ Mock AI • Real-time Processing • Location Detection • Live Feed
+            ✅ Real-time fake news detection • 10+ indicators • Confidence scoring
         </p>
     </div>
     ''',
