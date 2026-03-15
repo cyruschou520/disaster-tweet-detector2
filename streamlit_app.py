@@ -1,5 +1,5 @@
 # ================================================================
-# ENHANCED DISASTER TWEET AI DETECTOR - WITH FAKE VS REAL DETECTION (FULLY FIXED)
+# ENHANCED DISASTER TWEET AI DETECTOR - CLEAN VERSION
 # ================================================================
 
 import streamlit as st
@@ -165,20 +165,14 @@ st.markdown("""
     }
     
     /* Metric cards */
-    .metric-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-        gap: 20px;
-        margin: 25px 0;
-    }
-    
     .metric-item {
         background: white;
-        padding: 25px;
-        border-radius: 20px;
+        padding: 20px;
+        border-radius: 15px;
         text-align: center;
         box-shadow: 0 10px 20px rgba(0,0,0,0.05);
         transition: all 0.3s ease;
+        height: 100%;
     }
     
     .metric-item:hover {
@@ -187,7 +181,7 @@ st.markdown("""
     }
     
     .metric-value {
-        font-size: 2.8em;
+        font-size: 2.5em;
         font-weight: 800;
         color: #667eea;
         line-height: 1.2;
@@ -195,7 +189,7 @@ st.markdown("""
     
     .metric-label {
         color: #666;
-        font-size: 1em;
+        font-size: 0.9em;
         text-transform: uppercase;
         letter-spacing: 1px;
     }
@@ -220,9 +214,9 @@ st.markdown("""
     /* Button styles */
     .stButton button {
         border-radius: 15px !important;
-        padding: 15px 30px !important;
+        padding: 12px 25px !important;
         font-weight: 600 !important;
-        font-size: 1.1em !important;
+        font-size: 1em !important;
         transition: all 0.3s ease !important;
         border: none !important;
         box-shadow: 0 10px 20px rgba(0,0,0,0.1) !important;
@@ -237,14 +231,22 @@ st.markdown("""
     button[data-testid="baseButton-primary"] {
         background: linear-gradient(135deg, #667eea, #5a67d8) !important;
         color: white !important;
+        font-size: 1.2em !important;
+        padding: 15px 30px !important;
+    }
+    
+    /* Clear button */
+    .clear-button {
+        background: linear-gradient(135deg, #95a5a6, #7f8c8d) !important;
+        color: white !important;
     }
     
     /* Alert styles */
     .alert-box {
-        padding: 30px;
+        padding: 25px;
         border-radius: 20px;
         color: white;
-        font-size: 1.5em;
+        font-size: 1.3em;
         font-weight: bold;
         text-align: center;
         margin: 20px 0;
@@ -733,7 +735,6 @@ def display_fake_real_banner(result):
             ''',
             unsafe_allow_html=True
         )
-        st.markdown(f'<span class="fake-badge">❌ FAKE NEWS</span>', unsafe_allow_html=True)
     else:
         st.markdown(
             f'''
@@ -746,7 +747,6 @@ def display_fake_real_banner(result):
             ''',
             unsafe_allow_html=True
         )
-        st.markdown(f'<span class="real-badge">✅ REAL NEWS</span>', unsafe_allow_html=True)
 
 def display_probability_meter(result):
     """Display fake vs real probability meter"""
@@ -985,47 +985,31 @@ if st.session_state.get("auto_refresh", True):
         st.rerun()
 
 # ================================================================
-# INPUT SECTION
+# INPUT SECTION - Clean version with only Clear button
 # ================================================================
 st.markdown("### 📝 Enter Tweet for Fake/Real Analysis")
 
-input_col1, input_col2 = st.columns([6, 1])
+# Create two columns for input and clear button
+input_col, clear_col = st.columns([6, 1])
 
-with input_col1:
+with input_col:
     input_key = f"tweet_input_{st.session_state['input_key_counter']}"
     tweet = st.text_area(
         "",
         height=120,
-        placeholder="Example: URGENT! BREAKING: Massive earthquake in Kuala Lumpur! Thousands DEAD! SHARE NOW! 😱😱😱",
+        placeholder="Type or paste a tweet here to analyze...",
         key=input_key,
         label_visibility="collapsed"
     )
 
-with input_col2:
-    st.markdown("<br>", unsafe_allow_html=True)
-    if st.button("🗑️ Clear", use_container_width=True):
+with clear_col:
+    st.markdown("<br>", unsafe_allow_html=True)  # Add spacing for alignment
+    if st.button("🗑️ Clear", use_container_width=True, help="Clear input field"):
         st.session_state["input_key_counter"] += 1
         st.rerun()
 
-# ================================================================
-# QUICK EXAMPLES
-# ================================================================
-st.markdown("### 🎯 Test Examples")
-
-cols = st.columns(4)
-examples = [
-    ("🔴 Fake Example", "URGENT! BREAKING: MASSIVE 8.0 earthquake in Kuala Lumpur! Thousands DEAD! Government hiding truth! SHARE NOW! 😱😱😱"),
-    ("✅ Real Example", "Heavy rain in Kampar causing flash floods. According to JPS, water levels rising. 150 residents evacuated."),
-    ("🔄 Mixed Example", "URGENT! Flood in Johor! Water level 2 meters! Official source says evacuating. JPS confirms."),
-    ("📍 Location Test", "Landslide reported in Cameron Highlands - authorities responding, 3 people rescued")
-]
-
-for i, (label, text) in enumerate(examples):
-    with cols[i]:
-        if st.button(label, use_container_width=True, key=f"ex_{i}"):
-            st.session_state["tweet_input"] = text
-            st.session_state["input_key_counter"] += 1
-            st.rerun()
+# Add a simple instruction line
+st.caption("Enter any tweet above and click 'Analyze Fake/Real' to check if it's fake or real disaster news.")
 
 # ================================================================
 # ANALYZE BUTTON
@@ -1061,11 +1045,11 @@ if analyze_clicked and tweet:
                     st.session_state["stats"]["locations"] = {}
                 st.session_state["stats"]["locations"][location] = st.session_state["stats"]["locations"].get(location, 0) + 1
             
-            # Save analysis with ALL required fields - FIXED!
+            # Save analysis
             analysis_record = {
                 "timestamp": datetime.now().strftime("%H:%M:%S"),
                 "tweet": tweet[:50] + "..." if len(tweet) > 50 else tweet,
-                "is_fake": result["is_fake"],  # This key is now guaranteed to exist
+                "is_fake": result["is_fake"],
                 "confidence": result["confidence"],
                 "location": location if location else "Unknown",
                 "fake_probability": result["fake_probability"],
@@ -1146,7 +1130,7 @@ elif analyze_clicked and not tweet:
     st.warning("⚠️ Please enter a tweet for analysis")
 
 # ================================================================
-# LIVE FEED - FIXED with safe dictionary access
+# LIVE FEED
 # ================================================================
 if st.session_state["analyses"]:
     st.markdown("---")
