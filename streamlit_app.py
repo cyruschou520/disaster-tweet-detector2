@@ -1,5 +1,5 @@
 # ================================================================
-# ENHANCED DISASTER TWEET AI DETECTOR - CLEAN VERSION
+# ENHANCED DISASTER TWEET AI DETECTOR - FIXED CLEAR FUNCTION
 # ================================================================
 
 import streamlit as st
@@ -236,7 +236,7 @@ st.markdown("""
     }
     
     /* Clear button */
-    .clear-button {
+    .stButton button[key="clear_button"] {
         background: linear-gradient(135deg, #95a5a6, #7f8c8d) !important;
         color: white !important;
     }
@@ -349,6 +349,16 @@ if "stats" not in st.session_state:
         "locations": {},
         "keywords": {}
     }
+if "tweet_input" not in st.session_state:
+    st.session_state["tweet_input"] = ""
+
+# ================================================================
+# CALLBACK FUNCTION FOR CLEAR BUTTON
+# ================================================================
+def clear_input():
+    """Callback function to clear the tweet input"""
+    st.session_state["tweet_input"] = ""
+    st.session_state["input_key_counter"] += 1
 
 # ================================================================
 # CONSTANTS
@@ -985,28 +995,41 @@ if st.session_state.get("auto_refresh", True):
         st.rerun()
 
 # ================================================================
-# INPUT SECTION - Clean version with only Clear button
+# INPUT SECTION - With working Clear button
 # ================================================================
 st.markdown("### 📝 Enter Tweet for Fake/Real Analysis")
 
-# Create two columns for input and clear button
+# Create a unique key for the text area that changes when clear is clicked
+text_area_key = f"tweet_input_{st.session_state['input_key_counter']}"
+
+# Input and Clear button in columns
 input_col, clear_col = st.columns([6, 1])
 
 with input_col:
-    input_key = f"tweet_input_{st.session_state['input_key_counter']}"
+    # Use the dynamic key to force refresh when cleared
     tweet = st.text_area(
-        "",
+        "Tweet input",
+        value=st.session_state.get("tweet_input", ""),
         height=120,
         placeholder="Type or paste a tweet here to analyze...",
-        key=input_key,
+        key=text_area_key,
         label_visibility="collapsed"
     )
 
 with clear_col:
     st.markdown("<br>", unsafe_allow_html=True)  # Add spacing for alignment
-    if st.button("🗑️ Clear", use_container_width=True, help="Clear input field"):
-        st.session_state["input_key_counter"] += 1
-        st.rerun()
+    # Use on_click callback to clear the input
+    st.button(
+        "🗑️ Clear", 
+        on_click=clear_input, 
+        use_container_width=True,
+        key="clear_button",
+        help="Clear input field"
+    )
+
+# Update session state with current tweet value
+if tweet:
+    st.session_state["tweet_input"] = tweet
 
 # Add a simple instruction line
 st.caption("Enter any tweet above and click 'Analyze Fake/Real' to check if it's fake or real disaster news.")
@@ -1021,15 +1044,15 @@ with col1:
 # ================================================================
 # ANALYSIS EXECUTION
 # ================================================================
-if analyze_clicked and tweet:
+if analyze_clicked and st.session_state.get("tweet_input"):
     with st.spinner("🎯 Analyzing for fake vs real indicators..."):
-        result = detect_fake_vs_real(tweet)
+        result = detect_fake_vs_real(st.session_state["tweet_input"])
         
         if result:
             # Extract location
             location = None
             for loc in MALAYSIA_LOCATIONS:
-                if loc.lower() in tweet.lower():
+                if loc.lower() in st.session_state["tweet_input"].lower():
                     location = loc
                     break
             
@@ -1048,7 +1071,7 @@ if analyze_clicked and tweet:
             # Save analysis
             analysis_record = {
                 "timestamp": datetime.now().strftime("%H:%M:%S"),
-                "tweet": tweet[:50] + "..." if len(tweet) > 50 else tweet,
+                "tweet": st.session_state["tweet_input"][:50] + "..." if len(st.session_state["tweet_input"]) > 50 else st.session_state["tweet_input"],
                 "is_fake": result["is_fake"],
                 "confidence": result["confidence"],
                 "location": location if location else "Unknown",
@@ -1126,7 +1149,7 @@ if analyze_clicked and tweet:
             </div>
             """, unsafe_allow_html=True)
 
-elif analyze_clicked and not tweet:
+elif analyze_clicked and not st.session_state.get("tweet_input"):
     st.warning("⚠️ Please enter a tweet for analysis")
 
 # ================================================================
