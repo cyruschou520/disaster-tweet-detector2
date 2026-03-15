@@ -1,5 +1,5 @@
 # ================================================================
-# ENHANCED DISASTER TWEET AI DETECTOR - WITH FAKE VS REAL DETECTION (FIXED)
+# ENHANCED DISASTER TWEET AI DETECTOR - WITH FAKE VS REAL DETECTION (FULLY FIXED)
 # ================================================================
 
 import streamlit as st
@@ -327,7 +327,7 @@ def download_nltk_data():
 stop_words = download_nltk_data()
 
 # ================================================================
-# SESSION STATE INITIALIZATION - FIXED WITH SAFE DEFAULTS
+# SESSION STATE INITIALIZATION
 # ================================================================
 if "session_id" not in st.session_state:
     st.session_state["session_id"] = hashlib.md5(str(time.time()).encode()).hexdigest()[:8]
@@ -941,7 +941,7 @@ with st.sidebar:
     
     col1, col2 = st.columns(2)
     with col1:
-        fake_count = stats.get("fake", 0)  # Use .get() with default
+        fake_count = stats.get("fake", 0)
         st.markdown(f"""
         <div style="background: white; padding: 20px; border-radius: 15px; text-align: center;">
             <div style="font-size: 2.5em; font-weight: 800; color: #ff6b6b;">{fake_count}</div>
@@ -1061,13 +1061,15 @@ if analyze_clicked and tweet:
                     st.session_state["stats"]["locations"] = {}
                 st.session_state["stats"]["locations"][location] = st.session_state["stats"]["locations"].get(location, 0) + 1
             
-            # Save analysis
+            # Save analysis with ALL required fields - FIXED!
             analysis_record = {
                 "timestamp": datetime.now().strftime("%H:%M:%S"),
-                "tweet": tweet[:50] + "...",
-                "is_fake": result["is_fake"],
+                "tweet": tweet[:50] + "..." if len(tweet) > 50 else tweet,
+                "is_fake": result["is_fake"],  # This key is now guaranteed to exist
                 "confidence": result["confidence"],
-                "location": location
+                "location": location if location else "Unknown",
+                "fake_probability": result["fake_probability"],
+                "real_probability": result["real_probability"]
             }
             st.session_state["analyses"].append(analysis_record)
             
@@ -1144,7 +1146,7 @@ elif analyze_clicked and not tweet:
     st.warning("⚠️ Please enter a tweet for analysis")
 
 # ================================================================
-# LIVE FEED
+# LIVE FEED - FIXED with safe dictionary access
 # ================================================================
 if st.session_state["analyses"]:
     st.markdown("---")
@@ -1152,12 +1154,19 @@ if st.session_state["analyses"]:
     
     feed_data = []
     for a in reversed(list(st.session_state["analyses"])[-10:]):
+        # Use .get() with defaults to avoid KeyError
+        is_fake = a.get("is_fake", False)
+        confidence = a.get("confidence", 0.5)
+        location = a.get("location", "Unknown")
+        tweet_text = a.get("tweet", "Unknown tweet")
+        timestamp = a.get("timestamp", datetime.now().strftime("%H:%M:%S"))
+        
         feed_data.append({
-            "Time": a["timestamp"],
-            "Tweet": a["tweet"],
-            "Prediction": "🔴 FAKE" if a["is_fake"] else "✅ REAL",
-            "Confidence": f"{a['confidence']*100:.1f}%",
-            "Location": a["location"] if a["location"] else "Unknown"
+            "Time": timestamp,
+            "Tweet": tweet_text,
+            "Prediction": "🔴 FAKE" if is_fake else "✅ REAL",
+            "Confidence": f"{confidence*100:.1f}%",
+            "Location": location
         })
     
     df = pd.DataFrame(feed_data)
