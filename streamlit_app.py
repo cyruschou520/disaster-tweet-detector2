@@ -1,5 +1,5 @@
 # ================================================================
-# ENHANCED DISASTER TWEET AI DETECTOR - WITH FAKE VS REAL DETECTION
+# ENHANCED DISASTER TWEET AI DETECTOR - WITH FAKE VS REAL DETECTION (FIXED)
 # ================================================================
 
 import streamlit as st
@@ -327,7 +327,7 @@ def download_nltk_data():
 stop_words = download_nltk_data()
 
 # ================================================================
-# SESSION STATE INITIALIZATION
+# SESSION STATE INITIALIZATION - FIXED WITH SAFE DEFAULTS
 # ================================================================
 if "session_id" not in st.session_state:
     st.session_state["session_id"] = hashlib.md5(str(time.time()).encode()).hexdigest()[:8]
@@ -850,8 +850,7 @@ def create_location_map(location):
                 marker=dict(
                     size=25,
                     color='red',
-                    symbol='marker',
-                    line=dict(width=2, color='white')
+                    symbol='marker'
                 ),
                 text=[location],
                 textposition="top center",
@@ -937,33 +936,39 @@ with st.sidebar:
     </div>
     """, unsafe_allow_html=True)
     
+    # SAFELY access stats with .get() to avoid KeyError
+    stats = st.session_state["stats"]
+    
     col1, col2 = st.columns(2)
     with col1:
+        fake_count = stats.get("fake", 0)  # Use .get() with default
         st.markdown(f"""
         <div style="background: white; padding: 20px; border-radius: 15px; text-align: center;">
-            <div style="font-size: 2.5em; font-weight: 800; color: #ff6b6b;">{st.session_state['stats']['fake']}</div>
+            <div style="font-size: 2.5em; font-weight: 800; color: #ff6b6b;">{fake_count}</div>
             <div style="color: #666;">Fake Detected</div>
         </div>
         """, unsafe_allow_html=True)
     
     with col2:
+        real_count = stats.get("real", 0)
         st.markdown(f"""
         <div style="background: white; padding: 20px; border-radius: 15px; text-align: center;">
-            <div style="font-size: 2.5em; font-weight: 800; color: #10ac84;">{st.session_state['stats']['real']}</div>
+            <div style="font-size: 2.5em; font-weight: 800; color: #10ac84;">{real_count}</div>
             <div style="color: #666;">Real Detected</div>
         </div>
         """, unsafe_allow_html=True)
     
+    total_count = stats.get("total", 0)
     st.markdown(f"""
     <div style="background: white; padding: 20px; border-radius: 15px; text-align: center; margin-top: 10px;">
-        <div style="font-size: 2.5em; font-weight: 800; color: #667eea;">{st.session_state['stats']['total']}</div>
+        <div style="font-size: 2.5em; font-weight: 800; color: #667eea;">{total_count}</div>
         <div style="color: #666;">Total Analyses</div>
     </div>
     """, unsafe_allow_html=True)
     
     st.markdown("---")
     
-    auto_refresh = st.toggle("🔄 Auto-refresh", value=st.session_state["auto_refresh"])
+    auto_refresh = st.toggle("🔄 Auto-refresh", value=st.session_state.get("auto_refresh", True))
     st.session_state["auto_refresh"] = auto_refresh
     
     if st.button("🗑️ Clear History", use_container_width=True):
@@ -974,8 +979,8 @@ with st.sidebar:
 # ================================================================
 # AUTO-REFRESH LOGIC
 # ================================================================
-if st.session_state["auto_refresh"]:
-    if time.time() - st.session_state["last_refresh"] > 5:
+if st.session_state.get("auto_refresh", True):
+    if time.time() - st.session_state.get("last_refresh", time.time()) > 5:
         st.session_state["last_refresh"] = time.time()
         st.rerun()
 
@@ -1045,13 +1050,15 @@ if analyze_clicked and tweet:
                     break
             
             # Update stats
-            st.session_state["stats"]["total"] += 1
+            st.session_state["stats"]["total"] = st.session_state["stats"].get("total", 0) + 1
             if result["is_fake"]:
-                st.session_state["stats"]["fake"] += 1
+                st.session_state["stats"]["fake"] = st.session_state["stats"].get("fake", 0) + 1
             else:
-                st.session_state["stats"]["real"] += 1
+                st.session_state["stats"]["real"] = st.session_state["stats"].get("real", 0) + 1
             
             if location:
+                if "locations" not in st.session_state["stats"]:
+                    st.session_state["stats"]["locations"] = {}
                 st.session_state["stats"]["locations"][location] = st.session_state["stats"]["locations"].get(location, 0) + 1
             
             # Save analysis
@@ -1091,15 +1098,15 @@ if analyze_clicked and tweet:
             # Disaster Types
             if result["detected_disasters"]:
                 st.markdown("### 🌪️ Disaster Types Detected")
-                cols = st.columns(len(result["detected_disasters"]))
+                disaster_cols = st.columns(len(result["detected_disasters"]))
                 for i, d in enumerate(result["detected_disasters"]):
-                    with cols[i]:
+                    with disaster_cols[i]:
                         st.markdown(f"""
                         <div style="background: linear-gradient(135deg, #ff6b6b20, #ee525320); 
                                     padding: 15px; border-radius: 15px; text-align: center;
                                     border: 2px solid #ff6b6b;">
                             <span style="font-size: 2em;">{d['name'].split()[0]}</span><br>
-                            <strong>{d['name'].split()[1]}</strong>
+                            <strong>{' '.join(d['name'].split()[1:])}</strong>
                             <div style="font-size: 0.8em; color: #666;">{d['count']} keywords</div>
                         </div>
                         """, unsafe_allow_html=True)
