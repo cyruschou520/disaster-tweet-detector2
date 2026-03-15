@@ -467,7 +467,7 @@ def download_and_load_model():
     
     # Your Google Drive file ID
     file_id = "1iUBsn-eNIBftXxzzW65Z8wYXg1IgYhRt"
-    download_url = f"https://drive.google.com/file/d/1iUBsn-eNIBftXxzzW65Z8wYXg1IgYhRt/view?usp=sharing"
+    download_url = f"https://github.com/cyruschou520/disaster-tweet-detector2/releases/tag/v1.0.0"
     
     try:
         # Create a session to handle cookies
