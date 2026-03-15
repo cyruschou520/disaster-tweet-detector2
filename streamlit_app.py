@@ -1,5 +1,5 @@
 # ================================================================
-# ENHANCED DISASTER TWEET AI DETECTOR - FIXED CLASSIFICATION
+# ENHANCED DISASTER TWEET AI DETECTOR - WITH FIGURATIVE LANGUAGE DETECTION
 # ================================================================
 
 import streamlit as st
@@ -24,7 +24,7 @@ import base64
 # PAGE CONFIG
 # ================================================================
 st.set_page_config(
-    page_title="Disaster Tweet AI Detector | Fake vs Real Analysis",
+    page_title="Disaster Tweet AI Detector | Smart Classification",
     layout="wide",
     initial_sidebar_state="expanded",
     page_icon="🎯"
@@ -150,6 +150,17 @@ st.markdown("""
     .model-badge {
         background: linear-gradient(135deg, #667eea, #5a67d8);
         color: white;
+    }
+    
+    /* Figurative Language Indicator */
+    .figurative-indicator {
+        background: linear-gradient(135deg, #f39c12, #e67e22);
+        color: white;
+        padding: 15px;
+        border-radius: 10px;
+        margin: 10px 0;
+        text-align: center;
+        font-weight: bold;
     }
     
     /* Fake/Real Indicator Cards */
@@ -364,6 +375,7 @@ if "stats" not in st.session_state:
         "normal": 0,
         "fake": 0,
         "real": 0,
+        "figurative": 0,
         "locations": {},
         "keywords": {}
     }
@@ -404,6 +416,41 @@ NORMAL_KEYWORDS = [
     'happy', 'sad', 'excited', 'tired', 'bored', 'stressed',
     'love', 'hate', 'like', 'dislike', 'feel', 'feeling'
 ]
+
+# ================================================================
+# FIGURATIVE LANGUAGE PATTERNS
+# ================================================================
+
+FIGURATIVE_PATTERNS = {
+    "tsunami": {
+        "context_words": ['exam', 'result', 'grade', 'score', 'test', 'homework', 'assignment'],
+        "description": "Using 'tsunami' figuratively to describe overwhelming amount"
+    },
+    "flood": {
+        "context_words": ['email', 'work', 'task', 'assignment', 'homework', 'message', 'notification'],
+        "description": "Using 'flood' figuratively to describe overwhelming quantity"
+    },
+    "earthquake": {
+        "context_words": ['news', 'announcement', 'result', 'change', 'surprise', 'shock'],
+        "description": "Using 'earthquake' figuratively to describe shocking news"
+    },
+    "storm": {
+        "context_words": ['argument', 'fight', 'debate', 'controversy', 'drama'],
+        "description": "Using 'storm' figuratively to describe conflict"
+    },
+    "fire": {
+        "context_words": ['energy', 'motivation', 'passion', 'excitement', 'determination'],
+        "description": "Using 'fire' figuratively to describe enthusiasm"
+    },
+    "destroyed": {
+        "context_words": ['exam', 'result', 'game', 'match', 'competition', 'feeling', 'emotion'],
+        "description": "Using 'destroyed' figuratively to describe failure or strong emotion"
+    },
+    "devastated": {
+        "context_words": ['news', 'result', 'outcome', 'feeling', 'emotion', 'relationship'],
+        "description": "Using 'devastated' figuratively to describe emotional state"
+    }
+}
 
 # ================================================================
 # FAKE NEWS DETECTION PATTERNS
@@ -553,18 +600,49 @@ def preprocess_tweet(text):
     }
 
 # ================================================================
-# FIXED CLASSIFICATION FUNCTION
+# FIGURATIVE LANGUAGE DETECTION
+# ================================================================
+
+def detect_figurative_language(text):
+    """
+    Detect if disaster keywords are being used figuratively
+    Returns (is_figurative, explanation)
+    """
+    text_lower = text.lower()
+    words = set(text_lower.split())
+    
+    figurative_matches = []
+    
+    for disaster_word, pattern in FIGURATIVE_PATTERNS.items():
+        if disaster_word in text_lower:
+            # Check if any context words are present
+            context_matches = [ctx for ctx in pattern["context_words"] if ctx in text_lower]
+            if context_matches:
+                figurative_matches.append({
+                    "word": disaster_word,
+                    "context": context_matches,
+                    "description": pattern["description"]
+                })
+    
+    return figurative_matches
+
+# ================================================================
+# SMART CLASSIFICATION FUNCTION
 # ================================================================
 
 def classify_tweet(text):
     """
     Classify tweet as NORMAL, FAKE DISASTER, or REAL DISASTER
+    with figurative language detection
     """
     start_time = time.time()
     
     # Preprocess
     processed = preprocess_tweet(text)
     text_lower = text.lower()
+    
+    # Check for figurative language first
+    figurative_matches = detect_figurative_language(text)
     
     # Initialize scoring
     normal_score = 0
@@ -600,129 +678,144 @@ def classify_tweet(text):
     for disaster, keywords in DISASTER_KEYWORDS.items():
         matches = [kw for kw in keywords if kw in text_lower]
         if matches:
-            detected_disasters.append({
-                "name": disaster,
-                "keywords": matches[:3],
-                "count": len(matches)
-            })
-            disaster_keyword_count += len(matches)
+            # Only count as disaster if NOT figurative
+            is_figurative = any(fm["word"] in str(matches) for fm in figurative_matches)
+            
+            if not is_figurative:
+                detected_disasters.append({
+                    "name": disaster,
+                    "keywords": matches[:3],
+                    "count": len(matches)
+                })
+                disaster_keyword_count += len(matches)
     
     # ================================================================
     # FAKE NEWS DETECTION
     # ================================================================
     
-    # Check each fake pattern
-    for pattern_name, pattern in FAKE_PATTERNS.items():
-        matches = [kw for kw in pattern["keywords"] if kw in text_lower]
-        if matches:
-            match_count = len(matches)
-            points = match_count * pattern["weight"]
-            fake_score += points
-            
+    # Only apply fake/real scoring if there are actual disaster keywords
+    if disaster_keyword_count > 0:
+        # Check each fake pattern
+        for pattern_name, pattern in FAKE_PATTERNS.items():
+            matches = [kw for kw in pattern["keywords"] if kw in text_lower]
+            if matches:
+                match_count = len(matches)
+                points = match_count * pattern["weight"]
+                fake_score += points
+                
+                fake_indicators.append({
+                    "type": pattern_name,
+                    "icon": pattern["icon"],
+                    "matches": matches[:5],
+                    "count": match_count,
+                    "points": points,
+                    "description": pattern["description"]
+                })
+        
+        # Check for excessive exclamation marks
+        if processed["exclamation"] > 3:
+            extra_points = processed["exclamation"] * 0.5
+            fake_score += extra_points
             fake_indicators.append({
-                "type": pattern_name,
-                "icon": pattern["icon"],
-                "matches": matches[:5],
-                "count": match_count,
-                "points": points,
-                "description": pattern["description"]
+                "type": "excessive_exclamation",
+                "icon": "❗",
+                "matches": [f"{processed['exclamation']} exclamation marks"],
+                "count": processed["exclamation"],
+                "points": extra_points,
+                "description": "Excessive exclamation marks - emotional manipulation"
             })
-    
-    # Check for excessive exclamation marks
-    if processed["exclamation"] > 3 and disaster_keyword_count > 0:
-        extra_points = processed["exclamation"] * 0.5
-        fake_score += extra_points
-        fake_indicators.append({
-            "type": "excessive_exclamation",
-            "icon": "❗",
-            "matches": [f"{processed['exclamation']} exclamation marks"],
-            "count": processed["exclamation"],
-            "points": extra_points,
-            "description": "Excessive exclamation marks - emotional manipulation"
-        })
-    
-    # Check for ALL CAPS words
-    if processed["caps_words"] > 2 and disaster_keyword_count > 0:
-        extra_points = processed["caps_words"] * 0.5
-        fake_score += extra_points
-        fake_indicators.append({
-            "type": "all_caps",
-            "icon": "📣",
-            "matches": [f"{processed['caps_words']} words in ALL CAPS"],
-            "count": processed["caps_words"],
-            "points": extra_points,
-            "description": "SHOUTING - attempts to create urgency"
-        })
-    
-    # ================================================================
-    # REAL NEWS DETECTION
-    # ================================================================
-    
-    # Check each real pattern
-    for pattern_name, pattern in REAL_PATTERNS.items():
-        matches = [kw for kw in pattern["keywords"] if kw in text_lower]
-        if matches:
-            match_count = len(matches)
-            points = match_count * pattern["weight"]
-            real_score += points
-            
+        
+        # Check for ALL CAPS words
+        if processed["caps_words"] > 2:
+            extra_points = processed["caps_words"] * 0.5
+            fake_score += extra_points
+            fake_indicators.append({
+                "type": "all_caps",
+                "icon": "📣",
+                "matches": [f"{processed['caps_words']} words in ALL CAPS"],
+                "count": processed["caps_words"],
+                "points": extra_points,
+                "description": "SHOUTING - attempts to create urgency"
+            })
+        
+        # ================================================================
+        # REAL NEWS DETECTION
+        # ================================================================
+        
+        # Check each real pattern
+        for pattern_name, pattern in REAL_PATTERNS.items():
+            matches = [kw for kw in pattern["keywords"] if kw in text_lower]
+            if matches:
+                match_count = len(matches)
+                points = match_count * pattern["weight"]
+                real_score += points
+                
+                real_indicators.append({
+                    "type": pattern_name,
+                    "icon": pattern["icon"],
+                    "matches": matches[:5],
+                    "count": match_count,
+                    "points": points,
+                    "description": pattern["description"]
+                })
+        
+        # Check for specific numbers (credibility boost)
+        if processed["numbers"] > 2:
+            extra_points = processed["numbers"] * 0.3
+            real_score += extra_points
             real_indicators.append({
-                "type": pattern_name,
-                "icon": pattern["icon"],
-                "matches": matches[:5],
-                "count": match_count,
-                "points": points,
-                "description": pattern["description"]
+                "type": "specific_numbers",
+                "icon": "🔢",
+                "matches": [f"{processed['numbers']} numbers found"],
+                "count": processed["numbers"],
+                "points": extra_points,
+                "description": "Specific numbers - adds credibility"
             })
-    
-    # Check for specific numbers (credibility boost)
-    if processed["numbers"] > 2 and disaster_keyword_count > 0:
-        extra_points = processed["numbers"] * 0.3
-        real_score += extra_points
-        real_indicators.append({
-            "type": "specific_numbers",
-            "icon": "🔢",
-            "matches": [f"{processed['numbers']} numbers found"],
-            "count": processed["numbers"],
-            "points": extra_points,
-            "description": "Specific numbers - adds credibility"
-        })
-    
-    # Check for URLs (can verify information)
-    if processed["has_url"] and disaster_keyword_count > 0:
-        extra_points = 2.0
-        real_score += extra_points
-        real_indicators.append({
-            "type": "has_url",
-            "icon": "🔗",
-            "matches": processed["urls"][:2],
-            "count": len(processed["urls"]),
-            "points": extra_points,
-            "description": "Contains reference links - can verify"
-        })
-    
-    # Check for detailed information
-    if processed["word_count"] > 20 and disaster_keyword_count > 0:
-        extra_points = 1.0
-        real_score += extra_points
-        real_indicators.append({
-            "type": "detailed",
-            "icon": "📝",
-            "matches": [f"{processed['word_count']} words"],
-            "count": 1,
-            "points": extra_points,
-            "description": "Detailed information - more credible"
-        })
+        
+        # Check for URLs (can verify information)
+        if processed["has_url"]:
+            extra_points = 2.0
+            real_score += extra_points
+            real_indicators.append({
+                "type": "has_url",
+                "icon": "🔗",
+                "matches": processed["urls"][:2],
+                "count": len(processed["urls"]),
+                "points": extra_points,
+                "description": "Contains reference links - can verify"
+            })
+        
+        # Check for detailed information
+        if processed["word_count"] > 20:
+            extra_points = 1.0
+            real_score += extra_points
+            real_indicators.append({
+                "type": "detailed",
+                "icon": "📝",
+                "matches": [f"{processed['word_count']} words"],
+                "count": 1,
+                "points": extra_points,
+                "description": "Detailed information - more credible"
+            })
     
     # ================================================================
     # FINAL CLASSIFICATION
     # ================================================================
     
-    # If no disaster keywords, it's NORMAL
-    if disaster_keyword_count == 0:
+    # Check if all disaster keywords are figurative
+    all_figurative = len(figurative_matches) > 0 and disaster_keyword_count == 0
+    
+    if all_figurative or disaster_keyword_count == 0:
         classification = "NORMAL"
         confidence = 0.95  # High confidence for normal tweets
-        reasons = [f"✅ **NORMAL TWEET** - No disaster-related content detected"]
+        reasons = [f"✅ **NORMAL TWEET** - No actual disaster-related content detected"]
+        
+        if figurative_matches:
+            reasons.append("📝 **Figurative Language Detected:**")
+            for fm in figurative_matches:
+                reasons.append(f"  • '{fm['word']}' is used figuratively with context: {', '.join(fm['context'][:3])}")
+                reasons.append(f"    {fm['description']}")
+        
         if normal_indicators:
             reasons.append("📊 **Normal Indicators Found:**")
             for ind in normal_indicators:
@@ -731,7 +824,8 @@ def classify_tweet(text):
         # Disaster tweet - determine if fake or real
         if fake_score > real_score:
             classification = "FAKE"
-            confidence = fake_score / (fake_score + real_score) if (fake_score + real_score) > 0 else 0.5
+            total = fake_score + real_score
+            confidence = fake_score / total if total > 0 else 0.5
             reasons = [f"🔴 **FAKE DISASTER TWEET**"]
             if fake_indicators:
                 reasons.append("📊 **Fake Indicators Found:**")
@@ -739,7 +833,8 @@ def classify_tweet(text):
                     reasons.append(f"  {ind['icon']} {ind['description']} ({ind['count']} matches)")
         else:
             classification = "REAL"
-            confidence = real_score / (fake_score + real_score) if (fake_score + real_score) > 0 else 0.5
+            total = fake_score + real_score
+            confidence = real_score / total if total > 0 else 0.5
             reasons = [f"✅ **REAL DISASTER TWEET**"]
             if real_indicators:
                 reasons.append("📊 **Real Indicators Found:**")
@@ -769,6 +864,7 @@ def classify_tweet(text):
         "normal_score": normal_score,
         "confidence": confidence,
         "verdict": verdict,
+        "figurative_matches": figurative_matches,
         "fake_indicators": fake_indicators,
         "real_indicators": real_indicators,
         "normal_indicators": normal_indicators,
@@ -827,6 +923,17 @@ def display_classification_banner(result):
 
 def display_indicators(result):
     """Display indicators based on classification"""
+    
+    # Show figurative language if detected
+    if result["figurative_matches"]:
+        st.markdown("### 🔤 Figurative Language Detected")
+        for fm in result["figurative_matches"]:
+            st.markdown(f"""
+            <div class="figurative-indicator">
+                <strong>✨ '{fm['word']}'</strong> is used figuratively with context words: {', '.join(fm['context'][:3])}<br>
+                <small>{fm['description']}</small>
+            </div>
+            """, unsafe_allow_html=True)
     
     if result["classification"] == "NORMAL":
         if result["normal_indicators"]:
@@ -992,10 +1099,10 @@ with col2:
         f'''
         <div class="main-header">
             <h1 style="font-size: 3.5em; margin-bottom: 10px;">🎯 Disaster AI</h1>
-            <p style="font-size: 1.3em; opacity: 0.95;">Fake vs Real Disaster Tweet Analysis</p>
+            <p style="font-size: 1.3em; opacity: 0.95;">Smart Disaster Tweet Analysis with Figurative Language Detection</p>
             <div style="margin-top: 20px;">
                 <span class="status-badge live-badge">🔴 LIVE</span>
-                <span class="status-badge model-badge">🧠 3-Way Classifier</span>
+                <span class="status-badge model-badge">🧠 Smart Classifier</span>
             </div>
             <p style="margin-top: 20px; font-size: 0.9em; opacity: 0.8;">
                 Session: {st.session_state["session_id"]}
@@ -1046,6 +1153,14 @@ with st.sidebar:
         </div>
         """, unsafe_allow_html=True)
     
+    figurative_count = stats.get("figurative", 0)
+    st.markdown(f"""
+    <div style="background: white; padding: 15px; border-radius: 15px; text-align: center; margin-top: 10px;">
+        <div style="font-size: 1.5em; font-weight: 800; color: #f39c12;">{figurative_count}</div>
+        <div style="color: #666;">Figurative Language</div>
+    </div>
+    """, unsafe_allow_html=True)
+    
     total_count = stats.get("total", 0)
     st.markdown(f"""
     <div style="background: white; padding: 20px; border-radius: 15px; text-align: center; margin-top: 10px;">
@@ -1061,7 +1176,7 @@ with st.sidebar:
     
     if st.button("🗑️ Clear History", use_container_width=True):
         st.session_state["analyses"] = deque(maxlen=50)
-        st.session_state["stats"] = {"total": 0, "normal": 0, "fake": 0, "real": 0, "locations": {}, "keywords": {}}
+        st.session_state["stats"] = {"total": 0, "normal": 0, "fake": 0, "real": 0, "figurative": 0, "locations": {}, "keywords": {}}
         st.rerun()
 
 # ================================================================
@@ -1123,7 +1238,7 @@ with col1:
 # ANALYSIS EXECUTION
 # ================================================================
 if analyze_clicked and st.session_state.get("tweet_input"):
-    with st.spinner("🎯 Classifying tweet..."):
+    with st.spinner("🎯 Classifying tweet with smart detection..."):
         result = classify_tweet(st.session_state["tweet_input"])
         
         if result:
@@ -1144,6 +1259,9 @@ if analyze_clicked and st.session_state.get("tweet_input"):
             else:  # REAL
                 st.session_state["stats"]["real"] = st.session_state["stats"].get("real", 0) + 1
             
+            if result["figurative_matches"]:
+                st.session_state["stats"]["figurative"] = st.session_state["stats"].get("figurative", 0) + 1
+            
             if location:
                 if "locations" not in st.session_state["stats"]:
                     st.session_state["stats"]["locations"] = {}
@@ -1155,7 +1273,8 @@ if analyze_clicked and st.session_state.get("tweet_input"):
                 "tweet": st.session_state["tweet_input"][:50] + "..." if len(st.session_state["tweet_input"]) > 50 else st.session_state["tweet_input"],
                 "classification": result["classification"],
                 "confidence": result["confidence"],
-                "location": location if location else "Unknown"
+                "location": location if location else "Unknown",
+                "figurative": len(result["figurative_matches"]) > 0
             }
             st.session_state["analyses"].append(analysis_record)
             
@@ -1223,7 +1342,7 @@ if analyze_clicked and st.session_state.get("tweet_input"):
                         padding: 15px; border-radius: 15px; margin-top: 20px;
                         display: flex; justify-content: space-between;">
                 <span>⚡ Response time: {result['response_time']*1000:.0f}ms</span>
-                <span>🤖 Model: 3-Way Classifier v2.0</span>
+                <span>🤖 Model: Smart Classifier v3.0</span>
                 <span>🎯 Verdict: {result['verdict']}</span>
             </div>
             """, unsafe_allow_html=True)
@@ -1246,6 +1365,7 @@ if st.session_state["analyses"]:
         location = a.get("location", "Unknown")
         tweet_text = a.get("tweet", "Unknown tweet")
         timestamp = a.get("timestamp", datetime.now().strftime("%H:%M:%S"))
+        figurative = a.get("figurative", False)
         
         # Set emoji based on classification
         if classification == "NORMAL":
@@ -1255,10 +1375,13 @@ if st.session_state["analyses"]:
         else:  # REAL
             emoji = "✅"
         
+        # Add figurative marker
+        fig_marker = " ✨" if figurative else ""
+        
         feed_data.append({
             "Time": timestamp,
             "Tweet": tweet_text,
-            "Classification": f"{emoji} {classification}",
+            "Classification": f"{emoji} {classification}{fig_marker}",
             "Confidence": f"{confidence*100:.1f}%",
             "Location": location
         })
@@ -1277,14 +1400,15 @@ st.markdown(
             <span style="background: #95a5a6; color: white; padding: 8px 20px; border-radius: 30px;">💬 Normal</span>
             <span style="background: #ff6b6b; color: white; padding: 8px 20px; border-radius: 30px;">🔴 Fake</span>
             <span style="background: #10ac84; color: white; padding: 8px 20px; border-radius: 30px;">✅ Real</span>
-            <span style="background: #667eea; color: white; padding: 8px 20px; border-radius: 30px;">🎯 v2.0</span>
+            <span style="background: #f39c12; color: white; padding: 8px 20px; border-radius: 30px;">✨ Figurative</span>
+            <span style="background: #667eea; color: white; padding: 8px 20px; border-radius: 30px;">🎯 v3.0</span>
         </div>
         <p style="color: #666;">
-            Disaster Tweet AI Detector | 3-Way Classification: Normal, Fake Disaster, Real Disaster<br>
+            Disaster Tweet AI Detector | Smart Classification with Figurative Language Detection<br>
             Session: {st.session_state["session_id"]} | Last sync: {datetime.now().strftime('%H:%M:%S')}
         </p>
         <p style="color: #888; font-size: 0.9em; margin-top: 15px;">
-            ✅ 3-way classifier • Normal tweets • Fake detection • Real verification
+            ✅ Smart classifier • Figurative language detection • 3-way classification
         </p>
     </div>
     ''',
