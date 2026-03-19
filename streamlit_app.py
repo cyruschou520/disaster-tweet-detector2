@@ -639,7 +639,7 @@ if "stats" not in st.session_state:
 if "tweet_input" not in st.session_state:
     st.session_state["tweet_input"] = ""
 if "last_analysis" not in st.session_state:
-    st.session_state["last_analysis"] = None  # store the last tweet and result for feedback
+    st.session_state["last_analysis"] = None
 if "show_correction" not in st.session_state:
     st.session_state["show_correction"] = False
 
@@ -886,10 +886,8 @@ def predict_with_bert(text):
             outputs = bert_model(**inputs)
             probs = torch.softmax(outputs.logits, dim=1)
             if bert_num_labels == 2:
-                # Binary: prob of class 1 (disaster) is the fake probability
                 return probs[0][1].item()
             else:
-                # Three-class: return full probabilities as list
                 return probs[0].tolist()
     except Exception as e:
         st.warning(f"BERT inference error: {e}")
@@ -937,7 +935,7 @@ def check_geographic_feasibility(disaster_type, location):
     return 1.0
 
 # ================================================================
-# COMBINED CLASSIFICATION (now supports 3-class BERT with safe type handling)
+# COMBINED CLASSIFICATION (supports 3‑class with safe type handling)
 # ================================================================
 def classify_tweet(text, api_key=None):
     start_time = time.time()
@@ -1000,42 +998,40 @@ def classify_tweet(text, api_key=None):
     num_boost_note = "🔢 Numerical data detected (reduces fake probability)" if has_numbers else None
 
     # --- Three-class model handling ---
-    if bert_num_labels == 3 and bert_result is not None and isinstance(bert_result, list):
-        probs = bert_result  # list of 3 probabilities
-        if len(probs) == 3:
-            pred_class = np.argmax(probs)
-            class_map = {0: "NORMAL", 1: "REAL", 2: "FAKE"}
-            classification = class_map[pred_class]
-            confidence = probs[pred_class] * 100
+    if bert_num_labels == 3 and isinstance(bert_result, list) and len(bert_result) == 3:
+        probs = bert_result
+        pred_class = np.argmax(probs)
+        class_map = {0: "NORMAL", 1: "REAL", 2: "FAKE"}
+        classification = class_map[pred_class]
+        confidence = probs[pred_class] * 100
 
-            reasons = [
-                f"🤖 BERT confidence: {confidence:.1f}% ({classification})",
-                f"🔍 Source credibility: {'HIGH' if source_info['has_official'] else 'MEDIUM' if source_info['has_url'] else 'LOW'}",
-                f"⏰ Temporal: {', '.join(temporal_info['phrases'])} (freshness: {temporal_info['recency_score']*100:.0f}%) → {'RECENT' if temporal_info['is_recent'] else 'OLD'}",
-            ]
-            if geo_multiplier > 1.1:
-                reasons.append(f"🗺️ Geographic: Event unlikely in {location} (×{geo_multiplier:.1f} fake boost)")
-            if source_info["sources"]:
-                reasons.append("📌 Sources found: " + ", ".join(source_info["sources"][:3]))
-            if figurative_matches:
-                reasons.append("✨ Figurative language detected: " + ", ".join([fm['word'] for fm in figurative_matches]))
+        reasons = [
+            f"🤖 BERT confidence: {confidence:.1f}% ({classification})",
+            f"🔍 Source credibility: {'HIGH' if source_info['has_official'] else 'MEDIUM' if source_info['has_url'] else 'LOW'}",
+            f"⏰ Temporal: {', '.join(temporal_info['phrases'])} (freshness: {temporal_info['recency_score']*100:.0f}%) → {'RECENT' if temporal_info['is_recent'] else 'OLD'}",
+        ]
+        if geo_multiplier > 1.1:
+            reasons.append(f"🗺️ Geographic: Event unlikely in {location} (×{geo_multiplier:.1f} fake boost)")
+        if source_info["sources"]:
+            reasons.append("📌 Sources found: " + ", ".join(source_info["sources"][:3]))
+        if figurative_matches:
+            reasons.append("✨ Figurative language detected: " + ", ".join([fm['word'] for fm in figurative_matches]))
 
-            return {
-                "classification": classification,
-                "combined_fake_prob": 1 - confidence/100 if classification != "NORMAL" else 0,
-                "bert_fake_prob": probs[2] if classification == "FAKE" else probs[1] if classification == "REAL" else None,
-                "fake_score": fake_score,
-                "real_score": real_score,
-                "source_info": source_info,
-                "temporal_info": temporal_info,
-                "reasons": reasons,
-                "response_time": time.time() - start_time
-            }
+        return {
+            "classification": classification,
+            "combined_fake_prob": 1 - confidence/100 if classification != "NORMAL" else 0,
+            "bert_fake_prob": probs[2] if classification == "FAKE" else probs[1] if classification == "REAL" else None,
+            "fake_score": fake_score,
+            "real_score": real_score,
+            "source_info": source_info,
+            "temporal_info": temporal_info,
+            "reasons": reasons,
+            "response_time": time.time() - start_time
+        }
 
-    # --- Binary model handling (or fallback if 3-class output was invalid) ---
-    # Ensure bert_result is a float; if it's a list (e.g., from 3-class fallback), convert
+    # --- Binary model handling (or fallback) ---
     if isinstance(bert_result, list):
-        # Assume the list is probabilities; take probability of class 2 (FAKE) as fake probability
+        # If we got a list but we're in binary fallback, take probability of class 2 (FAKE) as fake prob
         if len(bert_result) >= 3:
             bert_fake_prob = bert_result[2]
         else:
@@ -1116,7 +1112,6 @@ def classify_tweet(text, api_key=None):
 # ================================================================
 st.markdown('<div class="glass-container">', unsafe_allow_html=True)
 
-# Create tabs: Detection and Training
 tab1, tab2 = st.tabs(["🔍 Detection", "🧠 Train Model"])
 
 # ================================================================
@@ -1156,7 +1151,6 @@ with tab1:
             unsafe_allow_html=True
         )
 
-    # Sidebar
     with st.sidebar:
         st.markdown('<div class="sidebar-content">', unsafe_allow_html=True)
         st.markdown("### 📊 Live Dashboard")
@@ -1224,7 +1218,6 @@ with tab1:
             st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
 
-    # Main input
     st.markdown("### 📝 Enter Tweet")
     input_col, clear_col = st.columns([6, 1])
     with input_col:
@@ -1251,14 +1244,12 @@ with tab1:
     with col1:
         analyze_clicked = st.button("🔍 Analyze", type="primary", use_container_width=True)
 
-    # Analysis execution
     if analyze_clicked and st.session_state.get("tweet_input"):
         with st.spinner("🎯 Analyzing with BERT + source + time + geography..."):
             result = classify_tweet(st.session_state["tweet_input"])
             location = extract_location(st.session_state["tweet_input"])
 
             if result:
-                # Store last analysis for feedback
                 st.session_state["last_analysis"] = {
                     "tweet": st.session_state["tweet_input"],
                     "prediction": result["classification"]
@@ -1367,7 +1358,6 @@ with tab1:
 
                     st.markdown("### 📊 Fake Probability Analysis")
                     if bert_num_labels == 3:
-                        # Show bar for NORMAL/REAL/FAKE? We'll just show a note.
                         st.info("Three-class model used – see BERT confidence above.")
                     else:
                         fake_percent = result['combined_fake_prob'] * 100
@@ -1494,11 +1484,9 @@ with tab2:
     - For three‑class classification, `target` should be 0 (NORMAL), 1 (REAL), or 2 (FAKE).
     """)
 
-    # Option to include feedback data
     include_feedback = st.checkbox("Include feedback data from corrections (saved in feedback_data.csv)")
     uploaded_file = st.file_uploader("Choose a CSV file (optional)", type="csv")
 
-    # Select number of classes
     num_classes = st.radio("Number of output classes", [2, 3], index=1 if NUM_CLASSES==3 else 0)
 
     if st.button("Start Training"):
@@ -1522,19 +1510,17 @@ with tab2:
         st.write("Class distribution:")
         st.bar_chart(combined_df['target'].value_counts())
 
-        # Training parameters
         epochs = st.number_input("Epochs", min_value=1, max_value=10, value=3, key="train_epochs")
         batch_size = st.number_input("Batch size", min_value=8, max_value=64, value=16, step=8, key="train_batch")
         lr = st.number_input("Learning rate", min_value=1e-6, max_value=1e-3, value=2e-5, format="%.5f", key="train_lr")
 
-        # Clear cache and train
         st.cache_resource.clear()
         with st.container():
             train_model(combined_df, epochs=epochs, batch_size=batch_size, lr=lr, num_classes=num_classes)
         st.success("Training finished! Switching to detection tab now uses your new model.")
 
 # ================================================================
-# FOOTER (appears in both tabs)
+# FOOTER
 # ================================================================
 st.markdown("---")
 st.markdown(
