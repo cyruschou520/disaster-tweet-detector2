@@ -23,7 +23,8 @@ import base64
 import os
 import torch
 from torch.utils.data import Dataset, DataLoader
-from transformers import AutoTokenizer, AutoModelForSequenceClassification, AdamW
+from torch.optim import AdamW                         # <-- FIXED IMPORT
+from transformers import AutoTokenizer, AutoModelForSequenceClassification
 from transformers import get_linear_schedule_with_warmup
 from sklearn.model_selection import train_test_split
 from tqdm import tqdm
