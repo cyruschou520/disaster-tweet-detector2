@@ -30,6 +30,10 @@ from sklearn.model_selection import train_test_split
 from tqdm import tqdm
 import joblib
 import sys
+import streamlit as st
+st.write("Firebase in secrets:", "firebase" in st.secrets)
+if "firebase" in st.secrets:
+    st.write("Project ID:", st.secrets["firebase"]["project_id"])
 
 # ================================================================
 # CONFIGURATION
