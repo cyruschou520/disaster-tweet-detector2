@@ -23,17 +23,13 @@ import base64
 import os
 import torch
 from torch.utils.data import Dataset, DataLoader
-from torch.optim import AdamW                         # <-- FIXED IMPORT
+from torch.optim import AdamW                         # <-- CORRECT IMPORT
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 from transformers import get_linear_schedule_with_warmup
 from sklearn.model_selection import train_test_split
 from tqdm import tqdm
 import joblib
 import sys
-import streamlit as st
-st.write("Firebase in secrets:", "firebase" in st.secrets)
-if "firebase" in st.secrets:
-    st.write("Project ID:", st.secrets["firebase"]["project_id"])
 
 # ================================================================
 # CONFIGURATION
